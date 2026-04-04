@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "Special Calendar",
+    "slug": "special-calendar",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/logo/appstore.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.carrelo1983.specialcalendar",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icons/adaptive-icon-foreground.png",
+        "backgroundImage": "./assets/icons/adaptive-icon-background.png"
+      },
+      "package": "com.carrelo1983.specialcalendar"
+    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#fff",
+          "image": "./assets/logo/logo_dark.png",
+          "resizeMode": "contain",
+          "imageWidth": 300
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "7cb2898d-0d22-44bf-9f5d-663ded38b8bf"
+      }
+    },
+    "owner": "carrelo1983",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7cb2898d-0d22-44bf-9f5d-663ded38b8bf"
+    }
+  }
+}
