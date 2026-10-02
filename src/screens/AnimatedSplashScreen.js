@@ -4,8 +4,8 @@ import {
   StyleSheet,
   StatusBar,
   View,
+  Image,
 } from 'react-native';
-import LottieView from 'lottie-react-native';
 
 export default function AnimatedSplashScreen({ onFinish }) {
 
@@ -24,7 +24,7 @@ export default function AnimatedSplashScreen({ onFinish }) {
         useNativeDriver: true,
       }),
 
-      // 🔹 Delay (deixa a animação rodar)
+      // 🔹 Delay
       Animated.delay(1500),
 
       // 🔹 Fade OUT + zoom leve
@@ -48,36 +48,35 @@ export default function AnimatedSplashScreen({ onFinish }) {
 
     return () => animation.stop();
 
-  }, []);
+  }, [onFinish]);
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeIn }]}>
 
-      {/* 🔹 Status Bar */}
+      {/*Status Bar */}
       <StatusBar
         translucent
         backgroundColor="transparent"
-        barStyle="light-content"
+        barStyle="dark-content"
       />
 
-      {/* 🔹 BACKGROUND (opcional - mantém cor sólida) */}
+      {/*BACKGROUND */}
       <View style={styles.background} />
 
-      {/* 🔥 LOTTIE ANIMATION */}
+      {/*LOGO */}
       <Animated.View
         style={[
-          styles.lottieWrapper,
+          styles.logoWrapper,
           {
             opacity,
             transform: [{ scale }],
           },
         ]}
       >
-        <LottieView
-          source={require('../../assets/animations/Insider-loading.json')}
-          autoPlay
-          loop
-          style={styles.lottie}
+        <Image
+          source={require('../../assets/logo/logo_dark.png')}
+          style={styles.logo}
+          resizeMode="contain"
         />
       </Animated.View>
 
@@ -97,14 +96,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
 
-  lottieWrapper: {
+  logoWrapper: {
     width: 220,
     height: 220,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
-  lottie: {
+  logo: {
     width: '100%',
     height: '100%',
   },

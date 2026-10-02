@@ -9,10 +9,15 @@ dist/
 web-build/
 expo-env.d.ts
 
+# build outputs
+build/
+**/build/
+
 # Native
 .kotlin/
 *.orig.*
 *.jks
+*.keystore
 *.p8
 *.p12
 *.key
@@ -31,7 +36,16 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+.env
+.env.*
+
+# credentials and signing configuration
+**/*credential*
+**/*secret*
+**/*signing*.properties
+**/key.properties
+**/keystore.properties
+assets/adi-registration.properties
 
 # typescript
 *.tsbuildinfo

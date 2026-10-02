@@ -2,14 +2,11 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { BackHandler, Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
-import LoadingOverlay from '../components/LoadingOverlay';
-
 const START_URL = 'https://specialcalendar.com/login-mobile';
 
 export default function WebViewScreen() {
   const webViewRef = useRef(null);
   const [canGoBack, setCanGoBack] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
   const onAndroidBackPress = useCallback(() => {
     if (canGoBack) {
