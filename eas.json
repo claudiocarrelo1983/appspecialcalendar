@@ -16,6 +16,7 @@
       "distribution": "internal",
       "channel": "preview",
       "env": {
+        "EXPO_PUBLIC_SITE_URL": "https://specialcalendar.com",
         "NODE_ENV": "preview"
       }
     },
@@ -23,6 +24,7 @@
       "autoIncrement": true,
       "channel": "production",
       "env": {
+        "EXPO_PUBLIC_SITE_URL": "https://specialcalendar.com",
         "NODE_ENV": "production"
       }
     }

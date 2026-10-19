@@ -1,0 +1,147 @@
+import { useCallback, useEffect, useRef } from 'react';
+import { AppState, Platform } from 'react-native';
+import Constants from 'expo-constants';
+import * as Device from 'expo-device';
+import * as Notifications from 'expo-notifications';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+export function notificationTarget(data, startUrl) {
+  if (!data || typeof data.url !== 'string' || data.url.length > 4096) return null;
+  try {
+    const base = new URL(startUrl);
+    const target = new URL(data.url, base);
+    if (!['https:', 'http:'].includes(target.protocol) || target.origin !== base.origin || target.username || target.password) return null;
+    return target.href;
+  } catch {
+    return null;
+  }
+}
+
+export async function registerPushNotifications(requestPermission = false) {
+  try {
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'FTX Team',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        sound: 'default',
+      });
+    }
+    let permission = await Notifications.getPermissionsAsync();
+    if (!permission.granted && permission.canAskAgain && requestPermission) {
+      permission = await Notifications.requestPermissionsAsync({
+        ios: { allowAlert: true, allowBadge: true, allowSound: true },
+      });
+    }
+    const allowed = permission.granted || (Platform.OS === 'ios' && [
+      Notifications.IosAuthorizationStatus.PROVISIONAL,
+      Notifications.IosAuthorizationStatus.EPHEMERAL,
+    ].includes(permission.ios?.status));
+    const state = { permission: permission.status, canAskAgain: permission.canAskAgain, expoPushToken: null };
+    if (!allowed) return state;
+    if (!Device.isDevice) return { ...state, error: 'physical-device-required' };
+    const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId;
+    if (!projectId) return { ...state, error: 'missing-project-id' };
+    try {
+      const token = await Notifications.getExpoPushTokenAsync({ projectId });
+      return { ...state, expoPushToken: token.data };
+    } catch {
+      return { ...state, error: 'push-registration-failed' };
+    }
+  } catch {
+    return { permission: 'unavailable', canAskAgain: false, expoPushToken: null, error: 'notifications-unavailable' };
+  }
+}
+
+export function notificationStateScript(state, origin) {
+  return `(function () {
+    if (window.location.origin !== ${JSON.stringify(origin)}) return true;
+    var state = ${JSON.stringify(state)};
+    window.__specialCalendarNotifications = state;
+    window.dispatchEvent(new CustomEvent('specialcalendar:notifications', { detail: state }));
+    return true;
+  })(); true;`;
+}
+
+export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
+  const origin = new URL(startUrl).origin;
+  const currentUrl = useRef(startUrl);
+  const state = useRef({ permission: 'undetermined', expoPushToken: null });
+  const registration = useRef(null);
+
+  const publish = useCallback(() => {
+    try {
+      if (new URL(currentUrl.current).origin !== origin) return;
+      webViewRef.current?.injectJavaScript(notificationStateScript(state.current, origin));
+    } catch { /* A navigation can finish after the WebView unmounts. */ }
+  }, [origin, webViewRef]);
+
+  const register = useCallback(async (requestPermission) => {
+    if (registration.current) return registration.current;
+    registration.current = registerPushNotifications(requestPermission).then((result) => {
+      const previousToken = state.current.expoPushToken || state.current.previousExpoPushToken;
+      state.current = { ...result, previousExpoPushToken: result.expoPushToken ? null : (previousToken || null) };
+      publish();
+      return result;
+    }).finally(() => { registration.current = null; });
+    return registration.current;
+  }, [publish]);
+
+  useEffect(() => {
+    let mounted = true;
+    const handled = new Set();
+    const handleResponse = (response) => {
+      if (!mounted || !response?.notification) return;
+      const key = response.notification.request.identifier + ':' + response.actionIdentifier;
+      if (handled.has(key)) return;
+      handled.add(key);
+      const url = notificationTarget(response.notification.request.content.data, startUrl);
+      if (url) onOpenUrl(url);
+      Notifications.clearLastNotificationResponseAsync().catch(() => {});
+    };
+    const responseSubscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
+    const tokenSubscription = Notifications.addPushTokenListener(() => { register(false); });
+    const appSubscription = AppState.addEventListener('change', (status) => {
+      if (status === 'active') register(false);
+    });
+    Notifications.getLastNotificationResponseAsync().then(handleResponse).catch(() => {});
+    register(true);
+    return () => {
+      mounted = false;
+      responseSubscription.remove();
+      tokenSubscription.remove();
+      appSubscription.remove();
+    };
+  }, [onOpenUrl, register, startUrl]);
+
+  const onLoadEnd = useCallback((event) => {
+    currentUrl.current = event.nativeEvent.url || startUrl;
+    publish();
+  }, [publish, startUrl]);
+
+  const onNavigation = useCallback((url) => {
+    currentUrl.current = url;
+  }, []);
+
+  const onMessage = useCallback((message) => {
+    if (message?.version !== 1) return false;
+    if (message.type === 'gym.notifications.request') {
+      register(true);
+      return true;
+    }
+    if (message.type === 'gym.notifications.status') {
+      register(false);
+      return true;
+    }
+    return false;
+  }, [register]);
+
+  return { onLoadEnd, onNavigation, onMessage };
+}

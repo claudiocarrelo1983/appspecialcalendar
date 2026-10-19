@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "Special Calendar",
-    "slug": "special-calendar",
-    "version": "1.0.0",
+    "name": "FTX Team",
+    "slug": "ftx",
+    "version": "1.0.2",
     "orientation": "portrait",
-    "icon": "./assets/logo/appstore.png",
+    "icon": "./assets/logo/ftx-icon.png",
     "userInterfaceStyle": "light",
     "platforms": [
       "android",
@@ -12,31 +12,38 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.carrelo1983.specialcalendar",
+      "bundleIdentifier": "com.ftxteam.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "A FTX Team utiliza a câmara para tirar uma fotografia e atualizar a sua foto de perfil.",
+        "NSPhotoLibraryUsageDescription": "A FTX Team permite escolher uma fotografia da sua biblioteca para atualizar a sua foto de perfil.",
+        "NSLocationWhenInUseUsageDescription": "A FTX Team utiliza a sua localização enquanto usa a aplicação para confirmar o local dos registos de presença."
       }
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/icons/adaptive-icon-foreground.png",
-        "backgroundImage": "./assets/icons/adaptive-icon-background.png"
-      },
-      "package": "com.carrelo1983.specialcalendar"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "7cb2898d-0d22-44bf-9f5d-663ded38b8bf"
-      }
+      "package": "com.ftxteam.app",
+      "blockedPermissions": [
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ],
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.POST_NOTIFICATIONS"
+      ]
     },
     "owner": "carrelo1983",
     "runtimeVersion": {
       "policy": "appVersion"
     },
-    "updates": {
-      "url": "https://u.expo.dev/7cb2898d-0d22-44bf-9f5d-663ded38b8bf"
-    },
     "plugins": [
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Permitir que a FTX Team abra o calendário para adicionar aulas.",
+          "remindersPermission": false
+        }
+      ],
       "expo-web-browser",
       [
         "expo-build-properties",
@@ -45,7 +52,18 @@
             "enableMinifyInReleaseBuilds": true
           }
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "defaultChannel": "default"
+        }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "2c8e7c35-68dc-40c6-b7ea-461f61de6c93"
+      }
+    }
   }
 }

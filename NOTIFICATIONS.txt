@@ -1,0 +1,43 @@
+FTX Team notification support
+
+Scope
+Notification permissions, Expo push registration, foreground banners and notification-tap navigation are implemented. The website now registers this device to the signed-in account for server-side class reminders. The website-bell integration is not enabled. No notification has been sent as part of this change.
+
+Native build
+The app version is 1.0.2 because new native notification modules are required. runtimeVersion uses appVersion, keeping this JavaScript update separate from older binaries.
+Run from this project:
+  eas build --platform ios --profile production
+  eas build --platform android --profile production
+
+Credentials
+For iOS, configure the Apple push notification credentials for com.ftxteam.app through EAS when building. For Android, supply this app's Firebase google-services.json through android.googleServicesFile and configure the matching FCM V1 service-account credentials in EAS. Credentials were not created or changed by this implementation. Do not put service-account credentials in the website or client-side JavaScript.
+
+Runtime
+The app requests notification permission when the WebView starts. Declining permission does not interrupt browsing. Registration errors are caught, and returning to the app retries registration without another permission prompt. Push-token changes refresh the Expo token. The default Android notification channel is "default".
+
+Website bridge (available only on the configured website origin)
+Read current status:
+  window.__specialCalendarNotifications
+Listen for updates:
+  window.addEventListener('specialcalendar:notifications', function (event) {
+    // event.detail: permission, canAskAgain, expoPushToken, optional error
+  });
+Refresh without prompting:
+  window.ReactNativeWebView.postMessage(JSON.stringify({type:'gym.notifications.status',version:1}));
+Request permission after a user action:
+  window.ReactNativeWebView.postMessage(JSON.stringify({type:'gym.notifications.request',version:1}));
+The website registers tokens with the signed-in account through a CSRF-protected endpoint. Tokens are not logged or placed in localStorage. Guest pages and revoked permissions disable the registered device.
+
+Notification links
+Use a notification data.url containing a relative application route, for example /dashboard-gym-client. Only the configured website origin is accepted. External, credential-bearing and non-HTTP(S) links are ignored.
+
+Before release
+Test a new native build on a physical iPhone/iPad and Android device: permission granted, permission declined, permissions changed in system settings, foreground/background delivery, cold-start notification tap, offline startup and a notification linking outside the application origin. Use the Expo notification testing tool after credentials are configured. Real remote delivery has not been tested in this Windows workspace.
+
+One-hour class reminders
+The website registers Expo tokens through the CSRF-protected POST /mobile-notifications/register endpoint. Guest pages disable the token after logout. The server checks confirmed group and personal bookings in Europe/Lisbon, including schedule overrides, one hour before the start; cancelled bookings are excluded.
+Deploy the workspace migration and schedule the following worker every minute on the website server:
+  php yii migrate/up --migrationPath=@console/migrations/mobile-push --interactive=0
+  php yii class-reminders/run --send=1
+Without --send=1 the worker performs a dry run and sends nothing. A delivery ledger avoids repeated alerts, a MySQL lock avoids concurrent workers, and Expo receipts disable unregistered devices. The local workspace database migration is applied; production scheduling and migration must be applied on the actual website server.
+Reminders are for the signed-in client's own confirmed bookings in their company. Registration must happen after installing the new native build and granting notification permission. Bookings made less than one hour before class do not trigger a retroactive reminder. Delivery depends on network/device notification settings; checks run every minute with a two-minute grace window.
