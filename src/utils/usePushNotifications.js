@@ -4,14 +4,18 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+} catch (error) {
+  console.warn('[PushNotifications] Failed to set notification handler:', error);
+}
 
 export function notificationTarget(data, startUrl) {
   if (!data || typeof data.url !== 'string' || data.url.length > 4096) return null;
@@ -28,22 +32,36 @@ export function notificationTarget(data, startUrl) {
 export async function registerPushNotifications(requestPermission = false) {
   try {
     if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
-        name: 'FTX Team',
-        importance: Notifications.AndroidImportance.DEFAULT,
-        sound: 'default',
-      });
+      try {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'FTX Team',
+          importance: Notifications.AndroidImportance.DEFAULT,
+          sound: 'default',
+        });
+      } catch (err) {
+        console.warn('[PushNotifications] Failed to set notification channel:', err);
+      }
     }
-    let permission = await Notifications.getPermissionsAsync();
+    let permission;
+    try {
+      permission = await Notifications.getPermissionsAsync();
+    } catch (err) {
+      console.warn('[PushNotifications] getPermissionsAsync failed:', err);
+      permission = { status: 'undetermined', granted: false, canAskAgain: true };
+    }
     if (!permission.granted && permission.canAskAgain && requestPermission) {
-      permission = await Notifications.requestPermissionsAsync({
-        ios: { allowAlert: true, allowBadge: true, allowSound: true },
-      });
+      try {
+        permission = await Notifications.requestPermissionsAsync({
+          ios: { allowAlert: true, allowBadge: true, allowSound: true },
+        });
+      } catch (err) {
+        console.warn('[PushNotifications] requestPermissionsAsync failed:', err);
+      }
     }
     const allowed = permission.granted || (Platform.OS === 'ios' && [
-      Notifications.IosAuthorizationStatus.PROVISIONAL,
-      Notifications.IosAuthorizationStatus.EPHEMERAL,
-    ].includes(permission.ios?.status));
+      Notifications.IosAuthorizationStatus?.PROVISIONAL,
+      Notifications.IosAuthorizationStatus?.EPHEMERAL,
+    ].filter(Boolean).includes(permission.ios?.status));
     const state = { permission: permission.status, canAskAgain: permission.canAskAgain, expoPushToken: null };
     if (!allowed) return state;
     if (!Device.isDevice) return { ...state, error: 'physical-device-required' };
@@ -71,7 +89,13 @@ export function notificationStateScript(state, origin) {
 }
 
 export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
-  const origin = new URL(startUrl).origin;
+  let origin = 'https://specialcalendar.com';
+  try {
+    origin = new URL(startUrl).origin;
+  } catch {
+    // Keep fallback
+  }
+
   const currentUrl = useRef(startUrl);
   const state = useRef({ permission: 'undetermined', expoPushToken: null });
   const registration = useRef(null);
@@ -90,34 +114,66 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
       state.current = { ...result, previousExpoPushToken: result.expoPushToken ? null : (previousToken || null) };
       publish();
       return result;
+    }).catch(() => {
+      return state.current;
     }).finally(() => { registration.current = null; });
     return registration.current;
   }, [publish]);
 
   useEffect(() => {
     let mounted = true;
-    const handled = new Set();
-    const handleResponse = (response) => {
-      if (!mounted || !response?.notification) return;
-      const key = response.notification.request.identifier + ':' + response.actionIdentifier;
-      if (handled.has(key)) return;
-      handled.add(key);
-      const url = notificationTarget(response.notification.request.content.data, startUrl);
-      if (url) onOpenUrl(url);
-      Notifications.clearLastNotificationResponseAsync().catch(() => {});
-    };
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
-    const tokenSubscription = Notifications.addPushTokenListener(() => { register(false); });
-    const appSubscription = AppState.addEventListener('change', (status) => {
-      if (status === 'active') register(false);
-    });
-    Notifications.getLastNotificationResponseAsync().then(handleResponse).catch(() => {});
-    register(true);
+    let responseSubscription = null;
+    let tokenSubscription = null;
+    let appSubscription = null;
+
+    try {
+      const handled = new Set();
+      const handleResponse = (response) => {
+        if (!mounted || !response?.notification) return;
+        const key = response.notification.request.identifier + ':' + response.actionIdentifier;
+        if (handled.has(key)) return;
+        handled.add(key);
+        const url = notificationTarget(response.notification.request.content.data, startUrl);
+        if (url) onOpenUrl(url);
+        try {
+          Notifications.clearLastNotificationResponseAsync().catch(() => {});
+        } catch {}
+      };
+
+      try {
+        responseSubscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
+      } catch (err) {
+        console.warn('[PushNotifications] addNotificationResponseReceivedListener failed:', err);
+      }
+
+      try {
+        tokenSubscription = Notifications.addPushTokenListener(() => { register(false); });
+      } catch (err) {
+        console.warn('[PushNotifications] addPushTokenListener failed:', err);
+      }
+
+      try {
+        appSubscription = AppState.addEventListener('change', (status) => {
+          if (status === 'active') register(false);
+        });
+      } catch (err) {
+        console.warn('[PushNotifications] AppState.addEventListener failed:', err);
+      }
+
+      try {
+        Notifications.getLastNotificationResponseAsync().then(handleResponse).catch(() => {});
+      } catch {}
+
+      register(true).catch(() => {});
+    } catch (err) {
+      console.warn('[PushNotifications] Error in hook effect:', err);
+    }
+
     return () => {
       mounted = false;
-      responseSubscription.remove();
-      tokenSubscription.remove();
-      appSubscription.remove();
+      try { responseSubscription?.remove?.(); } catch {}
+      try { tokenSubscription?.remove?.(); } catch {}
+      try { appSubscription?.remove?.(); } catch {}
     };
   }, [onOpenUrl, register, startUrl]);
 

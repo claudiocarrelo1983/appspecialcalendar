@@ -9,7 +9,13 @@ const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://specialcalendar.c
 const START_URL = `${SITE_URL}/login?pagecode=c20260531125358085`;
 const GYM_BOOKING_PATH = '/c20260531125358085/booking';
 const GYM_DASHBOARD_URL = `${SITE_URL}/dashboard-gym`;
-const NATIVE_CALENDAR_AVAILABLE = Boolean(requireOptionalNativeModule('ExpoCalendar'));
+let isCalendarAvailable = false;
+try {
+  isCalendarAvailable = Boolean(requireOptionalNativeModule('ExpoCalendar'));
+} catch {
+  isCalendarAvailable = false;
+}
+const NATIVE_CALENDAR_AVAILABLE = isCalendarAvailable;
 const CALENDAR_BRIDGE_SCRIPT = `window.__specialCalendarNativeCalendar = ${NATIVE_CALENDAR_AVAILABLE}; true;\n`;
 const GYM_REDIRECT_SCRIPT = `
   (function () {
