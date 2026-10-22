@@ -21,23 +21,23 @@ export default function AnimatedSplashScreen({ onFinish }) {
       // 🔹 Fade IN
       Animated.timing(fadeIn, {
         toValue: 1,
-        duration: 400,
+        duration: 250,
         useNativeDriver: true,
       }),
 
       // 🔹 Delay
-      Animated.delay(1500),
+      Animated.delay(700),
 
       // 🔹 Fade OUT + zoom leve
       Animated.parallel([
         Animated.timing(opacity, {
           toValue: 0,
-          duration: 500,
+          duration: 350,
           useNativeDriver: true,
         }),
         Animated.timing(scale, {
           toValue: 1.05,
-          duration: 500,
+          duration: 350,
           useNativeDriver: true,
         }),
       ]),
@@ -74,12 +74,14 @@ export default function AnimatedSplashScreen({ onFinish }) {
           },
         ]}
       >
-        <Image
-          source={require('../../assets/logo/ftx-icon.png')}
-          style={styles.logo}
-          resizeMode="contain"
-          accessibilityLabel="FTX Team logo"
-        />
+        <View style={styles.logoFrame}>
+          <Image
+            source={require('../../assets/logo/ftx-icon.png')}
+            style={styles.logo}
+            resizeMode="contain"
+            accessibilityLabel="FTX Team logo"
+          />
+        </View>
         <Text style={styles.attribution}>by Special Calendar</Text>
       </Animated.View>
 
@@ -100,14 +102,23 @@ const styles = StyleSheet.create({
   },
 
   logoWrapper: {
-    width: 220,
+    width: 246,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+
+  logoFrame: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#dce3df',
+    borderRadius: 24,
+    backgroundColor: '#fff',
   },
 
   logo: {
     width: 220,
     height: 220,
+    borderRadius: 12,
   },
 
   attribution: {
