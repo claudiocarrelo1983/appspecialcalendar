@@ -5,8 +5,8 @@ import { WebView } from 'react-native-webview';
 import usePushNotifications from '../utils/usePushNotifications';
 import { CALENDAR_MESSAGE_TYPE, calendarEventFromMessage, trustedCalendarOrigin } from '../utils/calendarBridge';
 
-const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://specialcalendar.com').replace(/\/$/, '');
-const START_URL = `${SITE_URL}/login?pagecode=c20260531125358085`;
+const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://c20260531125358085.specialcalendar.com').replace(/\/$/, '');
+const START_URL = `${SITE_URL}/`;
 const GYM_BOOKING_PATH = '/c20260531125358085/booking';
 const GYM_DASHBOARD_URL = `${SITE_URL}/dashboard-gym`;
 const NATIVE_CALENDAR_AVAILABLE = Boolean(requireOptionalNativeModule('ExpoCalendar'));

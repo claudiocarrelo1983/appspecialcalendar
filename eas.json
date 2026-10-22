@@ -13,18 +13,17 @@
       }
     },
     "preview": {
+      "developmentClient": false,
       "distribution": "internal",
-      "channel": "preview",
-      "env": {
-        "EXPO_PUBLIC_SITE_URL": "https://specialcalendar.com",
-        "NODE_ENV": "preview"
+      "android": {
+        "buildType": "apk"
       }
     },
     "production": {
       "autoIncrement": true,
       "channel": "production",
       "env": {
-        "EXPO_PUBLIC_SITE_URL": "https://specialcalendar.com",
+        "EXPO_PUBLIC_SITE_URL": "https://c20260531125358085.specialcalendar.com",
         "NODE_ENV": "production"
       }
     }
