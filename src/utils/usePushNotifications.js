@@ -2,19 +2,41 @@ import { useCallback, useEffect, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
 
-try {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
-} catch (error) {
-  console.warn('[PushNotifications] Failed to set notification handler:', error);
+let NotificationsModule = undefined;
+let handlerConfigured = false;
+
+function getNotifications() {
+  if (NotificationsModule !== undefined) return NotificationsModule;
+  try {
+    // Lazy require: a top-level import can abort the JS thread via RCTFatal
+    // if native notification modules are missing or emit before the bridge is ready.
+    // eslint-disable-next-line global-require
+    NotificationsModule = require('expo-notifications');
+  } catch (error) {
+    console.warn('[PushNotifications] Native module unavailable:', error);
+    NotificationsModule = null;
+  }
+  return NotificationsModule;
+}
+
+function configureNotificationHandler() {
+  if (handlerConfigured) return;
+  const Notifications = getNotifications();
+  if (!Notifications?.setNotificationHandler) return;
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+    handlerConfigured = true;
+  } catch (error) {
+    console.warn('[PushNotifications] Failed to set notification handler:', error);
+  }
 }
 
 export function notificationTarget(data, startUrl) {
@@ -31,6 +53,12 @@ export function notificationTarget(data, startUrl) {
 
 export async function registerPushNotifications(requestPermission = false) {
   try {
+    configureNotificationHandler();
+    const Notifications = getNotifications();
+    if (!Notifications) {
+      return { permission: 'unavailable', canAskAgain: false, expoPushToken: null, error: 'notifications-unavailable' };
+    }
+
     if (Platform.OS === 'android') {
       try {
         await Notifications.setNotificationChannelAsync('default', {
@@ -126,56 +154,69 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
     let tokenSubscription = null;
     let appSubscription = null;
 
-    try {
-      const handled = new Set();
-      const handleResponse = (response) => {
-        if (!mounted || !response?.notification) return;
-        const key = response.notification.request.identifier + ':' + response.actionIdentifier;
-        if (handled.has(key)) return;
-        handled.add(key);
-        const url = notificationTarget(response.notification.request.content.data, startUrl);
-        if (url) onOpenUrl(url);
+    // Defer until after first paint so the RN bridge is fully up.
+    const timer = setTimeout(() => {
+      if (!mounted) return;
+      try {
+        configureNotificationHandler();
+        const Notifications = getNotifications();
+        if (!Notifications) {
+          state.current = { permission: 'unavailable', canAskAgain: false, expoPushToken: null, error: 'notifications-unavailable' };
+          publish();
+          return;
+        }
+
+        const handled = new Set();
+        const handleResponse = (response) => {
+          if (!mounted || !response?.notification) return;
+          const key = response.notification.request.identifier + ':' + response.actionIdentifier;
+          if (handled.has(key)) return;
+          handled.add(key);
+          const url = notificationTarget(response.notification.request.content.data, startUrl);
+          if (url) onOpenUrl(url);
+          try {
+            Notifications.clearLastNotificationResponseAsync?.().catch(() => {});
+          } catch {}
+        };
+
         try {
-          Notifications.clearLastNotificationResponseAsync().catch(() => {});
+          responseSubscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
+        } catch (err) {
+          console.warn('[PushNotifications] addNotificationResponseReceivedListener failed:', err);
+        }
+
+        try {
+          tokenSubscription = Notifications.addPushTokenListener(() => { register(false); });
+        } catch (err) {
+          console.warn('[PushNotifications] addPushTokenListener failed:', err);
+        }
+
+        try {
+          appSubscription = AppState.addEventListener('change', (status) => {
+            if (status === 'active') register(false);
+          });
+        } catch (err) {
+          console.warn('[PushNotifications] AppState.addEventListener failed:', err);
+        }
+
+        try {
+          Notifications.getLastNotificationResponseAsync?.().then(handleResponse).catch(() => {});
         } catch {}
-      };
 
-      try {
-        responseSubscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
+        register(true).catch(() => {});
       } catch (err) {
-        console.warn('[PushNotifications] addNotificationResponseReceivedListener failed:', err);
+        console.warn('[PushNotifications] Error in hook effect:', err);
       }
-
-      try {
-        tokenSubscription = Notifications.addPushTokenListener(() => { register(false); });
-      } catch (err) {
-        console.warn('[PushNotifications] addPushTokenListener failed:', err);
-      }
-
-      try {
-        appSubscription = AppState.addEventListener('change', (status) => {
-          if (status === 'active') register(false);
-        });
-      } catch (err) {
-        console.warn('[PushNotifications] AppState.addEventListener failed:', err);
-      }
-
-      try {
-        Notifications.getLastNotificationResponseAsync().then(handleResponse).catch(() => {});
-      } catch {}
-
-      register(true).catch(() => {});
-    } catch (err) {
-      console.warn('[PushNotifications] Error in hook effect:', err);
-    }
+    }, 750);
 
     return () => {
       mounted = false;
+      clearTimeout(timer);
       try { responseSubscription?.remove?.(); } catch {}
       try { tokenSubscription?.remove?.(); } catch {}
       try { appSubscription?.remove?.(); } catch {}
     };
-  }, [onOpenUrl, register, startUrl]);
+  }, [onOpenUrl, publish, register, startUrl]);
 
   const onLoadEnd = useCallback((event) => {
     currentUrl.current = event.nativeEvent.url || startUrl;
