@@ -1,17 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
-import * as Device from 'expo-device';
-import * as Notifications from 'expo-notifications';
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+import { getNotifications } from './notificationModule';
 
 export function notificationTarget(data, startUrl) {
   if (!data || typeof data.url !== 'string' || data.url.length > 4096) return null;
@@ -27,6 +17,8 @@ export function notificationTarget(data, startUrl) {
 
 export async function registerPushNotifications(requestPermission = false) {
   try {
+    const Notifications = getNotifications();
+    if (!Notifications) throw new Error('Notification module unavailable');
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('default', {
         name: 'FTX Team',
@@ -46,6 +38,7 @@ export async function registerPushNotifications(requestPermission = false) {
     ].includes(permission.ios?.status));
     const state = { permission: permission.status, canAskAgain: permission.canAskAgain, expoPushToken: null };
     if (!allowed) return state;
+    const Device = require('expo-device');
     if (!Device.isDevice) return { ...state, error: 'physical-device-required' };
     const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId;
     if (!projectId) return { ...state, error: 'missing-project-id' };
@@ -95,6 +88,11 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
   }, [publish]);
 
   useEffect(() => {
+    const Notifications = getNotifications();
+    if (!Notifications) {
+      register(false);
+      return;
+    }
     let mounted = true;
     const handled = new Set();
     const handleResponse = (response) => {
@@ -106,18 +104,21 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
       if (url) onOpenUrl(url);
       Notifications.clearLastNotificationResponseAsync().catch(() => {});
     };
-    const responseSubscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
-    const tokenSubscription = Notifications.addPushTokenListener(() => { register(false); });
-    const appSubscription = AppState.addEventListener('change', (status) => {
-      if (status === 'active') register(false);
-    });
-    Notifications.getLastNotificationResponseAsync().then(handleResponse).catch(() => {});
+    const subscriptions = [];
+    try {
+      subscriptions.push(Notifications.addNotificationResponseReceivedListener(handleResponse));
+      subscriptions.push(Notifications.addPushTokenListener(() => { register(false); }));
+      subscriptions.push(AppState.addEventListener('change', (status) => {
+        if (status === 'active') register(false);
+      }));
+      Promise.resolve(Notifications.getLastNotificationResponseAsync()).then(handleResponse).catch(() => {});
+    } catch (error) {
+      console.warn('Could not initialize notification listeners:', error);
+    }
     register(true);
     return () => {
       mounted = false;
-      responseSubscription.remove();
-      tokenSubscription.remove();
-      appSubscription.remove();
+      subscriptions.forEach((subscription) => subscription.remove());
     };
   }, [onOpenUrl, register, startUrl]);
 
