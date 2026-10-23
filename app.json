@@ -5,6 +5,11 @@
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/logo/ftx-icon.png",
+    "splash": {
+      "image": "./assets/logo/ftx-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "userInterfaceStyle": "light",
     "platforms": [
       "android",
