@@ -77,11 +77,6 @@ export default function AnimatedSplashScreen({ onFinish, isReady = false }) {
 
   return (
     <Animated.View style={[styles.container, { opacity: containerOpacity }]} pointerEvents="none">
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="dark-content"
-      />
       <View style={styles.background} />
       <Animated.View
         style={[

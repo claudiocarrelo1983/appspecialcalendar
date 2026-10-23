@@ -121,14 +121,28 @@ const NATIVE_FEEL_SCRIPT = `
     // 4. Dynamic Status Bar Theme Detector
     function detectTheme() {
       try {
-        var path = (window.location.pathname || '').replace(/\/+$/, '') || '/';
-        var hasTopbar = !!document.querySelector('.topbar') || !!document.querySelector('header');
-        var hasLoginForm = !!document.querySelector('.pagecode-login-page') || !!document.querySelector('form[action*="login"]');
-        var isLoginPage = hasLoginForm || (!hasTopbar && (path === '/login' || path === '/form-signup' || path === '/request-password-reset'));
+        var path = ((window.location.pathname || '') + (window.location.search || '')).toLowerCase();
+        var hasAuthTopbar = !!document.querySelector('.pagecode-auth-topbar');
+        var hasAuthForm = !!document.querySelector('.pagecode-login-page') ||
+                          !!document.querySelector('[class*="signup"]') ||
+                          !!document.querySelector('[class*="register"]') ||
+                          !!document.querySelector('form[action*="login"]') ||
+                          !!document.querySelector('form[action*="signup"]') ||
+                          !!document.querySelector('form[action*="register"]');
+        var isAuthPath = path.indexOf('login') !== -1 ||
+                         path.indexOf('signup') !== -1 ||
+                         path.indexOf('register') !== -1 ||
+                         path.indexOf('registo') !== -1 ||
+                         path.indexOf('password') !== -1 ||
+                         path.indexOf('auth') !== -1;
+
+        var isLoginPage = hasAuthTopbar || hasAuthForm || isAuthPath;
         var isDark = isLoginPage;
         if (!isLoginPage && document.body) {
           var bg = window.getComputedStyle(document.body).backgroundColor;
-          if (bg && bg.indexOf('0, 0, 0') !== -1) isDark = true;
+          if (bg && (bg.indexOf('0, 0, 0') !== -1 || bg.indexOf('6, 18, 23') !== -1)) {
+            isDark = true;
+          }
         }
         if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
           window.ReactNativeWebView.postMessage(JSON.stringify({
@@ -293,8 +307,16 @@ const GYM_REDIRECT_SCRIPT = `
 function isLoginUrl(url) {
   if (!url) return false;
   try {
-    const path = url.split('?')[0].replace(/^https?:\/\/[^/]+/, '').replace(/\/+$/, '') || '/';
-    if (path === '/login' || path === '/form-signup' || path === '/request-password-reset') {
+    const path = url.split('?')[0].replace(/^https?:\/\/[^/]+/, '').toLowerCase().replace(/\/+$/, '') || '/';
+    if (
+      path === '/login' ||
+      path.includes('login') ||
+      path.includes('signup') ||
+      path.includes('register') ||
+      path.includes('registo') ||
+      path.includes('password') ||
+      path.includes('auth')
+    ) {
       return true;
     }
     if (path.includes('dashboard') || path.includes('booking') || path.includes('client') || path.includes('aula')) {
