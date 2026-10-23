@@ -11,47 +11,166 @@ const GYM_DASHBOARD_URL = `${SITE_URL}/dashboard-gym`;
 const CALENDAR_BRIDGE_SCRIPT = 'window.__specialCalendarNativeCalendar = false; true;\n';
 const NATIVE_FEEL_SCRIPT = `
   (function () {
-    if (window.__nativeFeelInstalled) return true;
-    window.__nativeFeelInstalled = true;
-
-    // Enforce native viewport: fit to screen and disable user pinch-to-zoom
-    var meta = document.querySelector('meta[name="viewport"]');
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.name = 'viewport';
-      document.head.appendChild(meta);
+    // 1. WebKit Engine Gesture & Multi-Touch Zoom Prevention
+    function preventZoomGesture(e) {
+      if (e.preventDefault) e.preventDefault();
     }
-    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
 
-    // Inject CSS to eliminate web-like artifacts
-    var style = document.createElement('style');
-    style.type = 'text/css';
-    style.innerHTML = [
-      '* {',
-      '  -webkit-touch-callout: none !important;',
-      '  -webkit-tap-highlight-color: transparent !important;',
-      '}',
-      '*:not(input):not(textarea):not([contenteditable="true"]) {',
-      '  -webkit-user-select: none !important;',
-      '  user-select: none !important;',
-      '}',
-      'input, textarea, [contenteditable="true"] {',
-      '  -webkit-user-select: text !important;',
-      '  user-select: text !important;',
-      '}',
-      'html, body {',
-      '  -webkit-overflow-scrolling: touch;',
-      '  touch-action: manipulation;',
-      '  overscroll-behavior-y: none;',
-      '}'
-    ].join('\\n');
+    try {
+      window.addEventListener('gesturestart', preventZoomGesture, { passive: false, capture: true });
+      window.addEventListener('gesturechange', preventZoomGesture, { passive: false, capture: true });
+      window.addEventListener('gestureend', preventZoomGesture, { passive: false, capture: true });
+      document.addEventListener('gesturestart', preventZoomGesture, { passive: false, capture: true });
+      document.addEventListener('gesturechange', preventZoomGesture, { passive: false, capture: true });
+      document.addEventListener('gestureend', preventZoomGesture, { passive: false, capture: true });
+    } catch (err) {}
 
-    if (document.head) {
-      document.head.appendChild(style);
-    } else {
+    function handleTouchMulti(e) {
+      if (e.touches && e.touches.length > 1) {
+        if (e.preventDefault) e.preventDefault();
+      }
+    }
+
+    try {
+      window.addEventListener('touchstart', handleTouchMulti, { passive: false, capture: true });
+      window.addEventListener('touchmove', handleTouchMulti, { passive: false, capture: true });
+      document.addEventListener('touchstart', handleTouchMulti, { passive: false, capture: true });
+      document.addEventListener('touchmove', handleTouchMulti, { passive: false, capture: true });
+    } catch (err) {}
+
+    // Prevent double-tap to zoom
+    var lastTouchEnd = 0;
+    try {
+      document.addEventListener('touchend', function (e) {
+        var now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+          if (e.preventDefault) e.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, { passive: false, capture: true });
+    } catch (err) {}
+
+    // 2. Viewport Meta Tag Enforcer (with safe DOM checks)
+    function applyViewport() {
+      try {
+        var desiredContent = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover';
+        var metas = document.querySelectorAll('meta[name="viewport"]');
+        if (metas && metas.length > 0) {
+          for (var i = 0; i < metas.length; i++) {
+            metas[i].setAttribute('content', desiredContent);
+          }
+        } else {
+          var target = document.head || document.documentElement;
+          if (target) {
+            var meta = document.createElement('meta');
+            meta.name = 'viewport';
+            meta.content = desiredContent;
+            target.appendChild(meta);
+          }
+        }
+      } catch (err) {}
+    }
+
+    // 3. CSS Injection (Touch Action, Safe Area Insets, Artifact Removal)
+    function applyNativeStyles() {
+      try {
+        var target = document.head || document.documentElement;
+        if (!target) return;
+        if (document.getElementById('__ftx_native_feel_styles')) return;
+
+        var style = document.createElement('style');
+        style.id = '__ftx_native_feel_styles';
+        style.type = 'text/css';
+        style.innerHTML = [
+          'html, body {',
+          '  touch-action: pan-x pan-y !important;',
+          '  -webkit-text-size-adjust: 100% !important;',
+          '  -webkit-overflow-scrolling: touch;',
+          '  overscroll-behavior-y: none;',
+          '  margin: 0 !important;',
+          '  padding: 0 !important;',
+          '}',
+          '* {',
+          '  -webkit-touch-callout: none !important;',
+          '  -webkit-tap-highlight-color: transparent !important;',
+          '}',
+          '*:not(input):not(textarea):not([contenteditable="true"]) {',
+          '  -webkit-user-select: none !important;',
+          '  user-select: none !important;',
+          '}',
+          'input, textarea, [contenteditable="true"] {',
+          '  -webkit-user-select: text !important;',
+          '  user-select: text !important;',
+          '  font-size: 16px !important;', /* Stops iOS auto-zoom on input focus */
+          '}',
+          /* Safe area insets so login screen content stays clear of Dynamic Island & Home Indicator */
+          '.pagecode-login-page {',
+          '  padding-top: max(1.5rem, calc(env(safe-area-inset-top) + 0.75rem)) !important;',
+          '  padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem)) !important;',
+          '  padding-left: max(1rem, env(safe-area-inset-left)) !important;',
+          '  padding-right: max(1rem, env(safe-area-inset-right)) !important;',
+          '  min-height: 100dvh !important;',
+          '  box-sizing: border-box !important;',
+          '}',
+          /* For internal app pages with headers */
+          '.top-header, .navbar-box-small, .navbar-box-big {',
+          '  padding-top: max(10px, env(safe-area-inset-top)) !important;',
+          '}'
+        ].join('\\n');
+
+        target.appendChild(style);
+      } catch (err) {}
+    }
+
+    // 4. Dynamic Status Bar Theme Detector
+    function detectTheme() {
+      try {
+        var isLoginPage = !!document.querySelector('.pagecode-login-page');
+        var isDark = isLoginPage;
+        if (!isLoginPage && document.body) {
+          var bg = window.getComputedStyle(document.body).backgroundColor;
+          if (bg && bg.indexOf('0, 0, 0') !== -1) isDark = true;
+        }
+        if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({
+            type: 'THEME_CHANGE',
+            isDark: isDark
+          }));
+        }
+      } catch (err) {}
+    }
+
+    applyViewport();
+    applyNativeStyles();
+    detectTheme();
+
+    if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', function () {
-        if (document.head) document.head.appendChild(style);
+        applyViewport();
+        applyNativeStyles();
+        detectTheme();
       });
+    }
+
+    window.addEventListener('load', function () {
+      applyViewport();
+      applyNativeStyles();
+      detectTheme();
+    });
+
+    if (window.MutationObserver) {
+      try {
+        var observer = new MutationObserver(function () {
+          applyViewport();
+          applyNativeStyles();
+          detectTheme();
+        });
+        observer.observe(document.documentElement || document, {
+          childList: true,
+          subtree: true,
+          attributes: false
+        });
+      } catch (err) {}
     }
 
     return true;
@@ -171,7 +290,7 @@ const GYM_REDIRECT_SCRIPT = `
   })();
 `;
 
-export default function WebViewScreen({ onInitialLoadComplete }) {
+export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) {
   const webViewRef = useRef(null);
   const initialLoadFired = useRef(false);
   const [canGoBack, setCanGoBack] = useState(false);
@@ -192,8 +311,12 @@ export default function WebViewScreen({ onInitialLoadComplete }) {
     if (!trustedCalendarOrigin(nativeEvent.url, START_URL) || typeof nativeEvent.data !== 'string' || nativeEvent.data.length > 50000) return;
     let message;
     try { message = JSON.parse(nativeEvent.data); } catch { return; }
+    if (message.type === 'THEME_CHANGE' && onThemeChange) {
+      onThemeChange(message.isDark);
+      return;
+    }
     notifications.onMessage(message);
-  }, [notifications.onMessage]);
+  }, [notifications.onMessage, onThemeChange]);
 
   const shouldRedirectToGymDashboard = useCallback((url) => {
     if (!url || url === GYM_DASHBOARD_URL) return false;
@@ -232,6 +355,8 @@ export default function WebViewScreen({ onInitialLoadComplete }) {
       ref={webViewRef}
       key={webViewUrl}
       source={{ uri: webViewUrl }}
+      style={styles.webView}
+      containerStyle={styles.container}
       injectedJavaScript={CALENDAR_BRIDGE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT}
       injectedJavaScriptBeforeContentLoaded={CALENDAR_BRIDGE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT}
       onMessage={onWebViewMessage}
@@ -239,6 +364,8 @@ export default function WebViewScreen({ onInitialLoadComplete }) {
       bounces={false}
       overScrollMode="never"
       scalesPageToFit={false}
+      contentInsetAdjustmentBehavior="never"
+      automaticallyAdjustContentInsets={false}
       showsHorizontalScrollIndicator={false}
       showsVerticalScrollIndicator={false}
       allowsInlineMediaPlayback
@@ -277,6 +404,10 @@ export default function WebViewScreen({ onInitialLoadComplete }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#061217',
+  },
+  webView: {
+    flex: 1,
+    backgroundColor: '#061217',
   },
 });
