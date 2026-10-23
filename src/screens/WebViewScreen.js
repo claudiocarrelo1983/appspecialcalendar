@@ -171,11 +171,22 @@ const GYM_REDIRECT_SCRIPT = `
   })();
 `;
 
-export default function WebViewScreen() {
+export default function WebViewScreen({ onInitialLoadComplete }) {
   const webViewRef = useRef(null);
+  const initialLoadFired = useRef(false);
   const [canGoBack, setCanGoBack] = useState(false);
   const [webViewUrl, setWebViewUrl] = useState(START_URL);
   const notifications = usePushNotifications(webViewRef, START_URL, setWebViewUrl);
+
+  const handleLoadEnd = useCallback((syntheticEvent) => {
+    notifications.onLoadEnd(syntheticEvent);
+    if (!initialLoadFired.current) {
+      initialLoadFired.current = true;
+      if (onInitialLoadComplete) {
+        onInitialLoadComplete();
+      }
+    }
+  }, [notifications.onLoadEnd, onInitialLoadComplete]);
 
   const onWebViewMessage = useCallback(async ({ nativeEvent }) => {
     if (!trustedCalendarOrigin(nativeEvent.url, START_URL) || typeof nativeEvent.data !== 'string' || nativeEvent.data.length > 50000) return;
@@ -224,7 +235,7 @@ export default function WebViewScreen() {
       injectedJavaScript={CALENDAR_BRIDGE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT}
       injectedJavaScriptBeforeContentLoaded={CALENDAR_BRIDGE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT}
       onMessage={onWebViewMessage}
-      onLoadEnd={notifications.onLoadEnd}
+      onLoadEnd={handleLoadEnd}
       bounces={false}
       overScrollMode="never"
       scalesPageToFit={false}

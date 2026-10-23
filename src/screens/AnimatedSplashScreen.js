@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import {
   Animated,
   StyleSheet,
@@ -7,68 +7,86 @@ import {
   Image,
 } from 'react-native';
 
-export default function AnimatedSplashScreen({ onFinish }) {
+export default function AnimatedSplashScreen({ onFinish, isReady = false }) {
+  const containerOpacity = useRef(new Animated.Value(1)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.95)).current;
+  const finishedRef = useRef(false);
+  const minTimePassedRef = useRef(false);
 
-  const opacity = useRef(new Animated.Value(1)).current;
-  const fadeIn = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(1)).current;
+  const triggerFadeOut = useCallback(() => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
 
+    Animated.parallel([
+      Animated.timing(containerOpacity, {
+        toValue: 0,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        toValue: 1.05,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      if (onFinish) onFinish();
+    });
+  }, [containerOpacity, scale, onFinish]);
+
+  // Initial logo fade-in and minimum display timer
   useEffect(() => {
-
-    const animation = Animated.sequence([
-
-      // 🔹 Fade IN
-      Animated.timing(fadeIn, {
+    Animated.parallel([
+      Animated.timing(logoOpacity, {
         toValue: 1,
         duration: 400,
         useNativeDriver: true,
       }),
+      Animated.timing(scale, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
 
-      // 🔹 Delay
-      Animated.delay(1500),
+    const minTimer = setTimeout(() => {
+      minTimePassedRef.current = true;
+      if (isReady) {
+        triggerFadeOut();
+      }
+    }, 1000);
 
-      // 🔹 Fade OUT + zoom leve
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: 1.05,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]);
+    // Fallback timer: dismiss after 4.5s max even if network is slow/offline
+    const fallbackTimer = setTimeout(() => {
+      triggerFadeOut();
+    }, 4500);
 
-    animation.start(({ finished }) => {
-      if (finished && onFinish) onFinish();
-    });
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(fallbackTimer);
+    };
+  }, [logoOpacity, scale, isReady, triggerFadeOut]);
 
-    return () => animation.stop();
-
-  }, [onFinish]);
+  // When WebView fires ready after min display timer has elapsed
+  useEffect(() => {
+    if (isReady && minTimePassedRef.current) {
+      triggerFadeOut();
+    }
+  }, [isReady, triggerFadeOut]);
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeIn }]}>
-
-      {/*Status Bar */}
+    <Animated.View style={[styles.container, { opacity: containerOpacity }]} pointerEvents="none">
       <StatusBar
         translucent
         backgroundColor="transparent"
         barStyle="dark-content"
       />
-
-      {/*BACKGROUND */}
       <View style={styles.background} />
-
-      {/*LOGO */}
       <Animated.View
         style={[
           styles.logoWrapper,
           {
-            opacity,
+            opacity: logoOpacity,
             transform: [{ scale }],
           },
         ]}
@@ -79,20 +97,20 @@ export default function AnimatedSplashScreen({ onFinish }) {
           resizeMode="contain"
         />
       </Animated.View>
-
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 999,
     justifyContent: 'center',
     alignItems: 'center',
   },
 
   background: {
-    ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: '#fff',
   },
 
