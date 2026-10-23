@@ -5,6 +5,7 @@ import {
   StatusBar,
   View,
   Image,
+  Text,
 } from 'react-native';
 
 export default function AnimatedSplashScreen({ onFinish, isReady = false }) {
@@ -92,10 +93,13 @@ export default function AnimatedSplashScreen({ onFinish, isReady = false }) {
         ]}
       >
         <Image
+        <Image
           source={require('../../assets/logo/ftx-logo-circle.png')}
           style={styles.logo}
           resizeMode="contain"
+          accessibilityLabel="FTX Team logo"
         />
+        <Text style={styles.attribution}>by Special Calendar</Text>
       </Animated.View>
     </Animated.View>
   );
@@ -116,7 +120,6 @@ const styles = StyleSheet.create({
 
   logoWrapper: {
     width: 220,
-    height: 220,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -127,7 +130,14 @@ const styles = StyleSheet.create({
   },
 
   logo: {
-    width: '100%',
-    height: '100%',
+    width: 220,
+    height: 220,
+  },
+
+  attribution: {
+    marginTop: 20,
+    color: '#60666b',
+    fontSize: 14,
+    textAlign: 'center',
   },
 });
