@@ -93,7 +93,7 @@ export default function AnimatedSplashScreen({ onFinish, isReady = false }) {
           resizeMode="contain"
           accessibilityLabel="FTX Team logo"
         />
-        <Text style={styles.attribution}>by Special Calendar</Text>
+        <Text style={styles.attribution}>FTX Team</Text>
       </Animated.View>
     </Animated.View>
   );
@@ -130,8 +130,10 @@ const styles = StyleSheet.create({
 
   attribution: {
     marginTop: 20,
-    color: '#60666b',
-    fontSize: 14,
+    color: '#061217',
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.5,
     textAlign: 'center',
   },
 });

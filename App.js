@@ -22,18 +22,20 @@ function AppContent() {
   const containerBg = isDark ? '#061217' : '#ffffff';
 
   return (
-    <View style={[styles.container, { backgroundColor: containerBg, paddingTop: topInset, paddingBottom: bottomInset }]}>
+    <View style={styles.root}>
       <RNStatusBar barStyle={isDark ? 'light-content' : 'dark-content'} animated />
       <ExpoStatusBar style={isDark ? 'light' : 'dark'} animated />
-      <WebViewScreen
-        onInitialLoadComplete={() => setWebViewReady(true)}
-        onThemeChange={(dark, isLogin) => {
-          setIsDarkTheme(dark);
-          if (typeof isLogin === 'boolean') {
-            setIsLoginPage(isLogin);
-          }
-        }}
-      />
+      <View style={[styles.container, { backgroundColor: containerBg, paddingTop: topInset, paddingBottom: bottomInset }]}>
+        <WebViewScreen
+          onInitialLoadComplete={() => setWebViewReady(true)}
+          onThemeChange={(dark, isLogin) => {
+            setIsDarkTheme(dark);
+            if (typeof isLogin === 'boolean') {
+              setIsLoginPage(isLogin);
+            }
+          }}
+        />
+      </View>
       {isSplashVisible && (
         <AnimatedSplashScreen
           isReady={isWebViewReady}
@@ -53,6 +55,10 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
   container: {
     flex: 1,
     alignItems: 'stretch',
