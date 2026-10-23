@@ -1,16 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, BackHandler, Platform, StyleSheet, View } from 'react-native';
-import { requireOptionalNativeModule } from 'expo';
 import { WebView } from 'react-native-webview';
 import usePushNotifications from '../utils/usePushNotifications';
-import { CALENDAR_MESSAGE_TYPE, calendarEventFromMessage, trustedCalendarOrigin } from '../utils/calendarBridge';
+import { trustedCalendarOrigin } from '../utils/calendarBridge';
 
 const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://c20260531125358085.specialcalendar.com').replace(/\/$/, '');
 const START_URL = `${SITE_URL}/`;
 const GYM_BOOKING_PATH = '/c20260531125358085/booking';
 const GYM_DASHBOARD_URL = `${SITE_URL}/dashboard-gym`;
-const NATIVE_CALENDAR_AVAILABLE = Boolean(requireOptionalNativeModule('ExpoCalendar'));
-const CALENDAR_BRIDGE_SCRIPT = `window.__specialCalendarNativeCalendar = ${NATIVE_CALENDAR_AVAILABLE}; true;\n`;
+const CALENDAR_BRIDGE_SCRIPT = 'window.__specialCalendarNativeCalendar = false; true;\n';
 const GYM_REDIRECT_SCRIPT = `
   (function () {
     if (window.__gymRedirectInstalled) return true;
@@ -127,7 +125,6 @@ const GYM_REDIRECT_SCRIPT = `
 
 export default function WebViewScreen() {
   const webViewRef = useRef(null);
-  const calendarDialogOpen = useRef(false);
   const [canGoBack, setCanGoBack] = useState(false);
   const [webViewUrl, setWebViewUrl] = useState(START_URL);
   const notifications = usePushNotifications(webViewRef, START_URL, setWebViewUrl);
@@ -136,31 +133,7 @@ export default function WebViewScreen() {
     if (!trustedCalendarOrigin(nativeEvent.url, START_URL) || typeof nativeEvent.data !== 'string' || nativeEvent.data.length > 50000) return;
     let message;
     try { message = JSON.parse(nativeEvent.data); } catch { return; }
-    if (notifications.onMessage(message)) return;
-    if (message?.type !== CALENDAR_MESSAGE_TYPE || calendarDialogOpen.current) return;
-    const portuguese = String(message.language || '').toLowerCase().startsWith('pt');
-    calendarDialogOpen.current = true;
-    try {
-      const event = calendarEventFromMessage(message);
-      if (!NATIVE_CALENDAR_AVAILABLE) throw new Error('Calendar module unavailable');
-      const Calendar = require('expo-calendar');
-      if (Platform.OS === 'ios' && parseInt(String(Platform.Version), 10) < 17) {
-        const permission = await Calendar.requestCalendarPermissionsAsync();
-        if (permission.status !== 'granted') {
-          Alert.alert(portuguese ? 'Calendário' : 'Calendar', portuguese
-            ? 'Permite o acesso ao calendário nas definições da aplicação para adicionar a aula.'
-            : 'Allow calendar access in the app settings to add this class.');
-          return;
-        }
-      }
-      await Calendar.createEventInCalendarAsync(event);
-    } catch {
-      Alert.alert(portuguese ? 'Calendário' : 'Calendar', portuguese
-        ? 'Não foi possível abrir o calendário. Confirma que tens uma aplicação de calendário instalada e a versão mais recente desta app.'
-        : 'Could not open the calendar. Check that a calendar app is installed and that this app is up to date.');
-    } finally {
-      calendarDialogOpen.current = false;
-    }
+    notifications.onMessage(message);
   }, [notifications.onMessage]);
 
   const shouldRedirectToGymDashboard = useCallback((url) => {

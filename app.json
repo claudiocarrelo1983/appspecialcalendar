@@ -37,13 +37,6 @@
       "policy": "appVersion"
     },
     "plugins": [
-      [
-        "expo-calendar",
-        {
-          "calendarPermission": "Permitir que a FTX Team abra o calendário para adicionar aulas.",
-          "remindersPermission": false
-        }
-      ],
       "expo-web-browser",
       [
         "expo-build-properties",
