@@ -42,9 +42,10 @@ export default function AnimatedSplashScreen({
       }
     }, 1200);
 
+    // Keep splash up longer so a stuck site loading-overlay never flashes white.
     const fallbackTimer = setTimeout(() => {
       triggerFadeOut();
-    }, 4500);
+    }, 12000);
 
     return () => {
       clearTimeout(minTimer);

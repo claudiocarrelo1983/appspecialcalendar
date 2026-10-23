@@ -9,55 +9,110 @@ const START_URL = `${SITE_URL}/`;
 const GYM_BOOKING_PATH = '/c20260531125358085/booking';
 const GYM_DASHBOARD_URL = `${SITE_URL}/dashboard-gym`;
 const CALENDAR_BRIDGE_SCRIPT = 'window.__specialCalendarNativeCalendar = false; true;\n';
-// Porto theme keeps .loading-overlay up until theme.js fires ready. In the native
-// WebView that overlay often never dismisses, leaving a blank white/black screen
-// after our splash fades. Force-remove it — we already own the splash experience.
+// Porto keeps .loading-overlay up until theme.js fires ready. In WKWebView that
+// often never happens → blank white screen after our splash. Kill it with CSS +
+// a light poll (no MutationObserver — those flooded the bridge and froze paint).
 const SITE_OVERLAY_HIDE_SCRIPT = `
   (function () {
+    if (window.__ftxOverlayHideInstalled) return true;
+    window.__ftxOverlayHideInstalled = true;
+    var readyPosted = false;
+
+    function ensureHideCss() {
+      try {
+        if (document.getElementById('__ftx_hide_loading_overlay')) return;
+        var target = document.head || document.documentElement;
+        if (!target) return;
+        var style = document.createElement('style');
+        style.id = '__ftx_hide_loading_overlay';
+        style.type = 'text/css';
+        style.appendChild(document.createTextNode([
+          'div.loading-overlay, .loading-overlay, .bounce-loader, .cssload-speeding-wheel-container {',
+          '  display: none !important;',
+          '  opacity: 0 !important;',
+          '  visibility: hidden !important;',
+          '  pointer-events: none !important;',
+          '  z-index: -1 !important;',
+          '}',
+          'body.loading-overlay-showing, html.loading-overlay-showing {',
+          '  overflow: auto !important;',
+          '}'
+        ].join('\\n')));
+        target.appendChild(style);
+      } catch (err) {}
+    }
+
     function hideSiteLoadingOverlay() {
       try {
-        var doc = document;
-        var html = doc.documentElement;
-        var body = doc.body;
+        ensureHideCss();
+        var body = document.body;
+        var html = document.documentElement;
         if (html) html.classList.remove('loading-overlay-showing');
         if (body) body.classList.remove('loading-overlay-showing');
-        var overlays = doc.querySelectorAll('div.loading-overlay');
+        var overlays = document.querySelectorAll('div.loading-overlay');
         for (var i = 0; i < overlays.length; i++) {
           var el = overlays[i];
-          if (!el || el === body || el === html) continue;
+          if (!el) continue;
           el.style.setProperty('display', 'none', 'important');
-          el.style.setProperty('opacity', '0', 'important');
-          el.style.setProperty('visibility', 'hidden', 'important');
-          el.style.setProperty('pointer-events', 'none', 'important');
-          try { el.remove(); } catch (err) {}
+          try { el.parentNode && el.parentNode.removeChild(el); } catch (err) {}
         }
         try {
           if (window.jQuery) {
             window.jQuery('body').removeClass('loading-overlay-showing');
-            window.jQuery('.loading-overlay').remove();
+            window.jQuery('div.loading-overlay').remove();
             window.jQuery(window).trigger('loading.overlay.ready');
           }
         } catch (err) {}
       } catch (err) {}
     }
 
-    hideSiteLoadingOverlay();
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', hideSiteLoadingOverlay);
-    }
-    window.addEventListener('load', hideSiteLoadingOverlay);
-    setTimeout(hideSiteLoadingOverlay, 0);
-    setTimeout(hideSiteLoadingOverlay, 250);
-    setTimeout(hideSiteLoadingOverlay, 800);
-    setTimeout(hideSiteLoadingOverlay, 2000);
-
-    if (window.MutationObserver) {
+    function hasVisibleAppContent() {
       try {
-        var obs = new MutationObserver(function () { hideSiteLoadingOverlay(); });
-        obs.observe(document.documentElement || document, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-        setTimeout(function () { try { obs.disconnect(); } catch (err) {} }, 5000);
+        return !!(
+          document.querySelector('.pagecode-login-card') ||
+          document.querySelector('.pagecode-login-page') ||
+          document.querySelector('.pagecode-auth-topbar') ||
+          document.querySelector('.topbar') ||
+          document.querySelector('form')
+        );
+      } catch (err) {
+        return false;
+      }
+    }
+
+    function maybePostReady() {
+      if (readyPosted) return;
+      hideSiteLoadingOverlay();
+      if (!hasVisibleAppContent()) return;
+      readyPosted = true;
+      try {
+        if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'CONTENT_READY' }));
+        }
       } catch (err) {}
     }
+
+    hideSiteLoadingOverlay();
+    maybePostReady();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () {
+        hideSiteLoadingOverlay();
+        maybePostReady();
+      });
+    }
+    window.addEventListener('load', function () {
+      hideSiteLoadingOverlay();
+      maybePostReady();
+    });
+
+    var ticks = 0;
+    var timer = setInterval(function () {
+      ticks += 1;
+      hideSiteLoadingOverlay();
+      maybePostReady();
+      if (readyPosted || ticks >= 40) clearInterval(timer);
+    }, 250);
+
     return true;
   })();
 `;
@@ -224,20 +279,8 @@ const NATIVE_FEEL_SCRIPT = `
       detectTheme();
     });
 
-    if (window.MutationObserver) {
-      try {
-        var observer = new MutationObserver(function () {
-          applyViewport();
-          applyNativeStyles();
-          detectTheme();
-        });
-        observer.observe(document.documentElement || document, {
-          childList: true,
-          subtree: true,
-          attributes: false
-        });
-      } catch (err) {}
-    }
+    // No MutationObserver here — observing the whole document while the page
+    // boots posts theme messages on every node insert and can freeze WKWebView.
 
     return true;
   })();
@@ -388,27 +431,33 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
   const [webViewUrl, setWebViewUrl] = useState(START_URL);
   const notifications = usePushNotifications(webViewRef, START_URL, setWebViewUrl);
 
+  const markReady = useCallback(() => {
+    if (initialLoadFired.current) return;
+    initialLoadFired.current = true;
+    if (onInitialLoadComplete) onInitialLoadComplete();
+  }, [onInitialLoadComplete]);
+
   const handleLoadEnd = useCallback((syntheticEvent) => {
     notifications.onLoadEnd(syntheticEvent);
-    if (!initialLoadFired.current) {
-      initialLoadFired.current = true;
-      if (onInitialLoadComplete) {
-        onInitialLoadComplete();
-      }
-    }
-  }, [notifications.onLoadEnd, onInitialLoadComplete]);
+    // Fallback only — prefer CONTENT_READY from the page after overlay is gone.
+    setTimeout(markReady, 2500);
+  }, [notifications.onLoadEnd, markReady]);
 
   const onWebViewMessage = useCallback(async ({ nativeEvent }) => {
     if (!nativeEvent || typeof nativeEvent.data !== 'string' || nativeEvent.data.length > 50000) return;
     let message;
     try { message = JSON.parse(nativeEvent.data); } catch { return; }
+    if (message.type === 'CONTENT_READY') {
+      markReady();
+      return;
+    }
     if (message.type === 'THEME_CHANGE' && onThemeChange) {
       onThemeChange(message.isDark, message.isLoginPage);
       return;
     }
     if (!trustedCalendarOrigin(nativeEvent.url || webViewUrl, START_URL)) return;
     notifications.onMessage(message);
-  }, [notifications.onMessage, onThemeChange, webViewUrl]);
+  }, [markReady, notifications.onMessage, onThemeChange, webViewUrl]);
 
   const shouldRedirectToGymDashboard = useCallback((url) => {
     if (!url || url === GYM_DASHBOARD_URL) return false;
@@ -456,10 +505,7 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       onError={(syntheticEvent) => {
         const { nativeEvent } = syntheticEvent;
         console.warn('[WebView] load error', nativeEvent?.description || nativeEvent);
-        if (!initialLoadFired.current) {
-          initialLoadFired.current = true;
-          if (onInitialLoadComplete) onInitialLoadComplete();
-        }
+        markReady();
       }}
       onHttpError={(syntheticEvent) => {
         console.warn('[WebView] HTTP error', syntheticEvent?.nativeEvent?.statusCode);
