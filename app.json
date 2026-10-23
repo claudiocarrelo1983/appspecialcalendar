@@ -5,11 +5,6 @@
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/logo/ftx-icon.png",
-    "splash": {
-      "image": "./assets/logo/ftx-logo-circle.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "userInterfaceStyle": "light",
     "platforms": [
       "android",
@@ -17,6 +12,7 @@
     ],
     "ios": {
       "supportsTablet": true,
+      "requireFullScreen": true,
       "bundleIdentifier": "com.ftxteam.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -55,6 +51,15 @@
         "expo-notifications",
         {
           "defaultChannel": "default"
+        }
+      ],
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logo/ftx-logo-circle.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
         }
       ]
     ],

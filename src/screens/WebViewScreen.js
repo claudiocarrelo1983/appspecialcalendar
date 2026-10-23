@@ -111,42 +111,6 @@ const NATIVE_FEEL_SCRIPT = `
           '  padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;',
           '  min-height: 100dvh !important;',
           '  box-sizing: border-box !important;',
-          '}',
-          /* Logged-in Topbar / Header (clears Dynamic Island / Status Bar cleanly) */
-          '.topbar,',
-          'header.topbar,',
-          '#page-topbar,',
-          '.page-header,',
-          '.navbar-header,',
-          '.main-header,',
-          '.app-header,',
-          '.top-header,',
-          '.navbar-box-small,',
-          '.navbar-box-big {',
-          '  padding-top: calc(env(safe-area-inset-top, 44px) + 8px) !important;',
-          '  box-sizing: content-box !important;',
-          '}',
-          /* If a logged-in page has no .topbar, pad the body so content isn't under status bar */
-          'body:not(:has(.pagecode-login-page)):not(:has(.topbar)):not(:has(#page-topbar)) {',
-          '  padding-top: calc(env(safe-area-inset-top, 44px) + 8px) !important;',
-          '}',
-          /* Bottom Navigation / Footer (clears Home Indicator cleanly) */
-          '.footer,',
-          'footer,',
-          '.fab-container,',
-          '.fixed-bottom,',
-          '.bottom-nav,',
-          '.bottom-bar,',
-          '.mobile-bottom-nav,',
-          '.mobile-nav,',
-          '[class*="bottom-nav"],',
-          '[class*="footer-nav"] {',
-          '  padding-bottom: max(12px, env(safe-area-inset-bottom, 20px)) !important;',
-          '  box-sizing: content-box !important;',
-          '}',
-          /* Prevent bottom content from being trapped behind the fixed bottom bar */
-          'body:not(:has(.pagecode-login-page)) {',
-          '  padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 80px) !important;',
           '}'
         ].join('\\n');
 
@@ -157,7 +121,10 @@ const NATIVE_FEEL_SCRIPT = `
     // 4. Dynamic Status Bar Theme Detector
     function detectTheme() {
       try {
-        var isLoginPage = !!document.querySelector('.pagecode-login-page');
+        var path = (window.location.pathname || '').replace(/\/+$/, '') || '/';
+        var hasTopbar = !!document.querySelector('.topbar') || !!document.querySelector('header');
+        var hasLoginForm = !!document.querySelector('.pagecode-login-page') || !!document.querySelector('form[action*="login"]');
+        var isLoginPage = hasLoginForm || (!hasTopbar && (path === '/login' || path === '/form-signup' || path === '/request-password-reset'));
         var isDark = isLoginPage;
         if (!isLoginPage && document.body) {
           var bg = window.getComputedStyle(document.body).backgroundColor;
@@ -166,39 +133,21 @@ const NATIVE_FEEL_SCRIPT = `
         if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
           window.ReactNativeWebView.postMessage(JSON.stringify({
             type: 'THEME_CHANGE',
-            isDark: isDark
+            isDark: isDark,
+            isLoginPage: isLoginPage
           }));
-        }
-      } catch (err) {}
-    }
-
-    // 5. JavaScript Safe Area Fallback Enforcer
-    function enforceSafeAreas() {
-      try {
-        if (document.querySelector('.pagecode-login-page')) return;
-        var topbar = document.querySelector('.topbar, #page-topbar, .page-header, .navbar-header, header');
-        if (topbar) {
-          topbar.style.setProperty('padding-top', 'calc(env(safe-area-inset-top, 44px) + 8px)', 'important');
-          topbar.style.setProperty('box-sizing', 'content-box', 'important');
-        }
-        var bottomBar = document.querySelector('.footer, .fab-container, .fixed-bottom, [class*="bottom-nav"], footer');
-        if (bottomBar) {
-          bottomBar.style.setProperty('padding-bottom', 'max(12px, env(safe-area-inset-bottom, 20px))', 'important');
-          bottomBar.style.setProperty('box-sizing', 'content-box', 'important');
         }
       } catch (err) {}
     }
 
     applyViewport();
     applyNativeStyles();
-    enforceSafeAreas();
     detectTheme();
 
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', function () {
         applyViewport();
         applyNativeStyles();
-        enforceSafeAreas();
         detectTheme();
       });
     }
@@ -206,7 +155,6 @@ const NATIVE_FEEL_SCRIPT = `
     window.addEventListener('load', function () {
       applyViewport();
       applyNativeStyles();
-      enforceSafeAreas();
       detectTheme();
     });
 
@@ -215,7 +163,6 @@ const NATIVE_FEEL_SCRIPT = `
         var observer = new MutationObserver(function () {
           applyViewport();
           applyNativeStyles();
-          enforceSafeAreas();
           detectTheme();
         });
         observer.observe(document.documentElement || document, {
@@ -343,6 +290,22 @@ const GYM_REDIRECT_SCRIPT = `
   })();
 `;
 
+function isLoginUrl(url) {
+  if (!url) return false;
+  try {
+    const path = url.split('?')[0].replace(/^https?:\/\/[^/]+/, '').replace(/\/+$/, '') || '/';
+    if (path === '/login' || path === '/form-signup' || path === '/request-password-reset') {
+      return true;
+    }
+    if (path.includes('dashboard') || path.includes('booking') || path.includes('client') || path.includes('aula')) {
+      return false;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) {
   const webViewRef = useRef(null);
   const initialLoadFired = useRef(false);
@@ -361,15 +324,16 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
   }, [notifications.onLoadEnd, onInitialLoadComplete]);
 
   const onWebViewMessage = useCallback(async ({ nativeEvent }) => {
-    if (!trustedCalendarOrigin(nativeEvent.url, START_URL) || typeof nativeEvent.data !== 'string' || nativeEvent.data.length > 50000) return;
+    if (!nativeEvent || typeof nativeEvent.data !== 'string' || nativeEvent.data.length > 50000) return;
     let message;
     try { message = JSON.parse(nativeEvent.data); } catch { return; }
     if (message.type === 'THEME_CHANGE' && onThemeChange) {
-      onThemeChange(message.isDark);
+      onThemeChange(message.isDark, message.isLoginPage);
       return;
     }
+    if (!trustedCalendarOrigin(nativeEvent.url || webViewUrl, START_URL)) return;
     notifications.onMessage(message);
-  }, [notifications.onMessage, onThemeChange]);
+  }, [notifications.onMessage, onThemeChange, webViewUrl]);
 
   const shouldRedirectToGymDashboard = useCallback((url) => {
     if (!url || url === GYM_DASHBOARD_URL) return false;
@@ -437,6 +401,11 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
         notifications.onNavigation(navState.url);
         setCanGoBack(navState.canGoBack);
 
+        if (navState.url && onThemeChange) {
+          const isLogin = isLoginUrl(navState.url);
+          onThemeChange(isLogin, isLogin);
+        }
+
         if (shouldRedirectToGymDashboard(navState.url)) {
           redirectToGymDashboard();
         }
@@ -457,10 +426,10 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#061217',
+    backgroundColor: 'transparent',
   },
   webView: {
     flex: 1,
-    backgroundColor: '#061217',
+    backgroundColor: 'transparent',
   },
 });
