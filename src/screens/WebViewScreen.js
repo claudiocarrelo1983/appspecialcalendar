@@ -105,16 +105,48 @@ const NATIVE_FEEL_SCRIPT = `
           '}',
           /* Safe area insets so login screen content stays clear of Dynamic Island & Home Indicator */
           '.pagecode-login-page {',
-          '  padding-top: max(1.5rem, calc(env(safe-area-inset-top) + 0.75rem)) !important;',
-          '  padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom) + 0.75rem)) !important;',
-          '  padding-left: max(1rem, env(safe-area-inset-left)) !important;',
-          '  padding-right: max(1rem, env(safe-area-inset-right)) !important;',
+          '  padding-top: max(1.5rem, calc(env(safe-area-inset-top, 44px) + 0.75rem)) !important;',
+          '  padding-bottom: max(1.5rem, calc(env(safe-area-inset-bottom, 20px) + 0.75rem)) !important;',
+          '  padding-left: max(1rem, env(safe-area-inset-left, 0px)) !important;',
+          '  padding-right: max(1rem, env(safe-area-inset-right, 0px)) !important;',
           '  min-height: 100dvh !important;',
           '  box-sizing: border-box !important;',
           '}',
-          /* For internal app pages with headers */
-          '.top-header, .navbar-box-small, .navbar-box-big {',
-          '  padding-top: max(10px, env(safe-area-inset-top)) !important;',
+          /* Logged-in Topbar / Header (clears Dynamic Island / Status Bar cleanly) */
+          '.topbar,',
+          'header.topbar,',
+          '#page-topbar,',
+          '.page-header,',
+          '.navbar-header,',
+          '.main-header,',
+          '.app-header,',
+          '.top-header,',
+          '.navbar-box-small,',
+          '.navbar-box-big {',
+          '  padding-top: calc(env(safe-area-inset-top, 44px) + 8px) !important;',
+          '  box-sizing: content-box !important;',
+          '}',
+          /* If a logged-in page has no .topbar, pad the body so content isn't under status bar */
+          'body:not(:has(.pagecode-login-page)):not(:has(.topbar)):not(:has(#page-topbar)) {',
+          '  padding-top: calc(env(safe-area-inset-top, 44px) + 8px) !important;',
+          '}',
+          /* Bottom Navigation / Footer (clears Home Indicator cleanly) */
+          '.footer,',
+          'footer,',
+          '.fab-container,',
+          '.fixed-bottom,',
+          '.bottom-nav,',
+          '.bottom-bar,',
+          '.mobile-bottom-nav,',
+          '.mobile-nav,',
+          '[class*="bottom-nav"],',
+          '[class*="footer-nav"] {',
+          '  padding-bottom: max(12px, env(safe-area-inset-bottom, 20px)) !important;',
+          '  box-sizing: content-box !important;',
+          '}',
+          /* Prevent bottom content from being trapped behind the fixed bottom bar */
+          'body:not(:has(.pagecode-login-page)) {',
+          '  padding-bottom: calc(env(safe-area-inset-bottom, 20px) + 80px) !important;',
           '}'
         ].join('\\n');
 
@@ -140,14 +172,33 @@ const NATIVE_FEEL_SCRIPT = `
       } catch (err) {}
     }
 
+    // 5. JavaScript Safe Area Fallback Enforcer
+    function enforceSafeAreas() {
+      try {
+        if (document.querySelector('.pagecode-login-page')) return;
+        var topbar = document.querySelector('.topbar, #page-topbar, .page-header, .navbar-header, header');
+        if (topbar) {
+          topbar.style.setProperty('padding-top', 'calc(env(safe-area-inset-top, 44px) + 8px)', 'important');
+          topbar.style.setProperty('box-sizing', 'content-box', 'important');
+        }
+        var bottomBar = document.querySelector('.footer, .fab-container, .fixed-bottom, [class*="bottom-nav"], footer');
+        if (bottomBar) {
+          bottomBar.style.setProperty('padding-bottom', 'max(12px, env(safe-area-inset-bottom, 20px))', 'important');
+          bottomBar.style.setProperty('box-sizing', 'content-box', 'important');
+        }
+      } catch (err) {}
+    }
+
     applyViewport();
     applyNativeStyles();
+    enforceSafeAreas();
     detectTheme();
 
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', function () {
         applyViewport();
         applyNativeStyles();
+        enforceSafeAreas();
         detectTheme();
       });
     }
@@ -155,6 +206,7 @@ const NATIVE_FEEL_SCRIPT = `
     window.addEventListener('load', function () {
       applyViewport();
       applyNativeStyles();
+      enforceSafeAreas();
       detectTheme();
     });
 
@@ -163,6 +215,7 @@ const NATIVE_FEEL_SCRIPT = `
         var observer = new MutationObserver(function () {
           applyViewport();
           applyNativeStyles();
+          enforceSafeAreas();
           detectTheme();
         });
         observer.observe(document.documentElement || document, {
