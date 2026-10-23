@@ -1,19 +1,18 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import {
-  Animated,
-  StyleSheet,
-  StatusBar,
-  View,
-  Image,
-  Text,
-} from 'react-native';
+import { Animated, StyleSheet } from 'react-native';
 
-export default function AnimatedSplashScreen({ onFinish, isReady = false }) {
+export default function AnimatedSplashScreen({
+  onFinish,
+  onLayoutReady,
+  isReady = false,
+}) {
+  // Start fully visible so the handoff from the native splash is seamless
+  // (same white bg + centered 200px logo, no "FTX Team" text).
   const containerOpacity = useRef(new Animated.Value(1)).current;
-  const logoOpacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.95)).current;
+  const scale = useRef(new Animated.Value(1)).current;
   const finishedRef = useRef(false);
   const minTimePassedRef = useRef(false);
+  const layoutReadyFiredRef = useRef(false);
 
   const triggerFadeOut = useCallback(() => {
     if (finishedRef.current) return;
@@ -35,29 +34,14 @@ export default function AnimatedSplashScreen({ onFinish, isReady = false }) {
     });
   }, [containerOpacity, scale, onFinish]);
 
-  // Initial logo fade-in and minimum display timer
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(logoOpacity, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.timing(scale, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
     const minTimer = setTimeout(() => {
       minTimePassedRef.current = true;
       if (isReady) {
         triggerFadeOut();
       }
-    }, 1000);
+    }, 1200);
 
-    // Fallback timer: dismiss after 4.5s max even if network is slow/offline
     const fallbackTimer = setTimeout(() => {
       triggerFadeOut();
     }, 4500);
@@ -66,9 +50,8 @@ export default function AnimatedSplashScreen({ onFinish, isReady = false }) {
       clearTimeout(minTimer);
       clearTimeout(fallbackTimer);
     };
-  }, [logoOpacity, scale, isReady, triggerFadeOut]);
+  }, [isReady, triggerFadeOut]);
 
-  // When WebView fires ready after min display timer has elapsed
   useEffect(() => {
     if (isReady && minTimePassedRef.current) {
       triggerFadeOut();
@@ -76,64 +59,40 @@ export default function AnimatedSplashScreen({ onFinish, isReady = false }) {
   }, [isReady, triggerFadeOut]);
 
   return (
-    <Animated.View style={[styles.container, { opacity: containerOpacity }]} pointerEvents="none">
-      <View style={styles.background} />
-      <Animated.View
-        style={[
-          styles.logoWrapper,
-          {
-            opacity: logoOpacity,
-            transform: [{ scale }],
-          },
-        ]}
-      >
-        <Image
-          source={require('../../assets/logo/ftx-logo-circle.png')}
-          style={styles.logo}
-          resizeMode="contain"
-          accessibilityLabel="FTX Team logo"
-        />
-        <Text style={styles.attribution}>FTX Team</Text>
-      </Animated.View>
+    <Animated.View
+      style={[styles.container, { opacity: containerOpacity }]}
+      pointerEvents="none"
+      onLayout={() => {
+        if (layoutReadyFiredRef.current) return;
+        layoutReadyFiredRef.current = true;
+        if (onLayoutReady) onLayoutReady();
+      }}
+    >
+      <Animated.Image
+        source={require('../../assets/logo/ftx-logo-circle.png')}
+        style={[styles.logo, { transform: [{ scale }] }]}
+        resizeMode="contain"
+        accessibilityLabel="FTX Team logo"
+      />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 999,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: '#ffffff',
+    zIndex: 99999,
+    elevation: 99999,
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  background: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#fff',
-  },
-
-  logoWrapper: {
-    width: 220,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-
   logo: {
-    width: 220,
-    height: 220,
-  },
-
-  attribution: {
-    marginTop: 20,
-    color: '#061217',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-    textAlign: 'center',
+    width: 200,
+    height: 200,
   },
 });

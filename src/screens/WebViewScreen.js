@@ -9,6 +9,58 @@ const START_URL = `${SITE_URL}/`;
 const GYM_BOOKING_PATH = '/c20260531125358085/booking';
 const GYM_DASHBOARD_URL = `${SITE_URL}/dashboard-gym`;
 const CALENDAR_BRIDGE_SCRIPT = 'window.__specialCalendarNativeCalendar = false; true;\n';
+// Porto theme keeps .loading-overlay up until theme.js fires ready. In the native
+// WebView that overlay often never dismisses, leaving a blank white/black screen
+// after our splash fades. Force-remove it — we already own the splash experience.
+const SITE_OVERLAY_HIDE_SCRIPT = `
+  (function () {
+    function hideSiteLoadingOverlay() {
+      try {
+        var doc = document;
+        var html = doc.documentElement;
+        var body = doc.body;
+        if (html) html.classList.remove('loading-overlay-showing');
+        if (body) body.classList.remove('loading-overlay-showing');
+        var overlays = doc.querySelectorAll('div.loading-overlay');
+        for (var i = 0; i < overlays.length; i++) {
+          var el = overlays[i];
+          if (!el || el === body || el === html) continue;
+          el.style.setProperty('display', 'none', 'important');
+          el.style.setProperty('opacity', '0', 'important');
+          el.style.setProperty('visibility', 'hidden', 'important');
+          el.style.setProperty('pointer-events', 'none', 'important');
+          try { el.remove(); } catch (err) {}
+        }
+        try {
+          if (window.jQuery) {
+            window.jQuery('body').removeClass('loading-overlay-showing');
+            window.jQuery('.loading-overlay').remove();
+            window.jQuery(window).trigger('loading.overlay.ready');
+          }
+        } catch (err) {}
+      } catch (err) {}
+    }
+
+    hideSiteLoadingOverlay();
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', hideSiteLoadingOverlay);
+    }
+    window.addEventListener('load', hideSiteLoadingOverlay);
+    setTimeout(hideSiteLoadingOverlay, 0);
+    setTimeout(hideSiteLoadingOverlay, 250);
+    setTimeout(hideSiteLoadingOverlay, 800);
+    setTimeout(hideSiteLoadingOverlay, 2000);
+
+    if (window.MutationObserver) {
+      try {
+        var obs = new MutationObserver(function () { hideSiteLoadingOverlay(); });
+        obs.observe(document.documentElement || document, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        setTimeout(function () { try { obs.disconnect(); } catch (err) {} }, 5000);
+      } catch (err) {}
+    }
+    return true;
+  })();
+`;
 const NATIVE_FEEL_SCRIPT = `
   (function () {
     // 1. WebKit Engine Gesture & Multi-Touch Zoom Prevention
@@ -305,10 +357,14 @@ const GYM_REDIRECT_SCRIPT = `
 `;
 
 function isLoginUrl(url) {
-  if (!url) return false;
+  if (!url) return true;
   try {
     const path = url.split('?')[0].replace(/^https?:\/\/[^/]+/, '').toLowerCase().replace(/\/+$/, '') || '/';
+    if (path.includes('dashboard') || path.includes('booking') || path.includes('client') || path.includes('aula') || path.includes('schedule')) {
+      return false;
+    }
     if (
+      path === '/' ||
       path === '/login' ||
       path.includes('login') ||
       path.includes('signup') ||
@@ -318,9 +374,6 @@ function isLoginUrl(url) {
       path.includes('auth')
     ) {
       return true;
-    }
-    if (path.includes('dashboard') || path.includes('booking') || path.includes('client') || path.includes('aula')) {
-      return false;
     }
     return false;
   } catch {
@@ -396,10 +449,21 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       source={{ uri: webViewUrl }}
       style={styles.webView}
       containerStyle={styles.container}
-      injectedJavaScript={CALENDAR_BRIDGE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT}
-      injectedJavaScriptBeforeContentLoaded={CALENDAR_BRIDGE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT}
+      injectedJavaScript={CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT}
+      injectedJavaScriptBeforeContentLoaded={CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT}
       onMessage={onWebViewMessage}
       onLoadEnd={handleLoadEnd}
+      onError={(syntheticEvent) => {
+        const { nativeEvent } = syntheticEvent;
+        console.warn('[WebView] load error', nativeEvent?.description || nativeEvent);
+        if (!initialLoadFired.current) {
+          initialLoadFired.current = true;
+          if (onInitialLoadComplete) onInitialLoadComplete();
+        }
+      }}
+      onHttpError={(syntheticEvent) => {
+        console.warn('[WebView] HTTP error', syntheticEvent?.nativeEvent?.statusCode);
+      }}
       bounces={false}
       overScrollMode="never"
       scalesPageToFit={false}
@@ -411,6 +475,7 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       mediaPlaybackRequiresUserAction={false}
       setBuiltInZoomControls={false}
       displayZoomControls={false}
+      originWhitelist={['*']}
       onShouldStartLoadWithRequest={(request) => {
         if (shouldRedirectToGymDashboard(request.url)) {
           redirectToGymDashboard();
@@ -448,10 +513,10 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#ffffff',
   },
   webView: {
     flex: 1,
-    backgroundColor: 'transparent',
+    backgroundColor: '#ffffff',
   },
 });

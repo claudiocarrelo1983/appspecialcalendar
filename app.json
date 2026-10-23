@@ -58,8 +58,13 @@
         "expo-splash-screen",
         {
           "image": "./assets/logo/ftx-logo-circle.png",
+          "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "image": "./assets/logo/ftx-logo-circle.png",
+            "backgroundColor": "#ffffff"
+          }
         }
       ]
     ],
