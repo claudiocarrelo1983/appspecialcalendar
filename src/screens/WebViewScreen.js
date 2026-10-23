@@ -9,6 +9,54 @@ const START_URL = `${SITE_URL}/`;
 const GYM_BOOKING_PATH = '/c20260531125358085/booking';
 const GYM_DASHBOARD_URL = `${SITE_URL}/dashboard-gym`;
 const CALENDAR_BRIDGE_SCRIPT = 'window.__specialCalendarNativeCalendar = false; true;\n';
+const NATIVE_FEEL_SCRIPT = `
+  (function () {
+    if (window.__nativeFeelInstalled) return true;
+    window.__nativeFeelInstalled = true;
+
+    // Enforce native viewport: fit to screen and disable user pinch-to-zoom
+    var meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.name = 'viewport';
+      document.head.appendChild(meta);
+    }
+    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+
+    // Inject CSS to eliminate web-like artifacts
+    var style = document.createElement('style');
+    style.type = 'text/css';
+    style.innerHTML = [
+      '* {',
+      '  -webkit-touch-callout: none !important;',
+      '  -webkit-tap-highlight-color: transparent !important;',
+      '}',
+      '*:not(input):not(textarea):not([contenteditable="true"]) {',
+      '  -webkit-user-select: none !important;',
+      '  user-select: none !important;',
+      '}',
+      'input, textarea, [contenteditable="true"] {',
+      '  -webkit-user-select: text !important;',
+      '  user-select: text !important;',
+      '}',
+      'html, body {',
+      '  -webkit-overflow-scrolling: touch;',
+      '  touch-action: manipulation;',
+      '  overscroll-behavior-y: none;',
+      '}'
+    ].join('\\n');
+
+    if (document.head) {
+      document.head.appendChild(style);
+    } else {
+      document.addEventListener('DOMContentLoaded', function () {
+        if (document.head) document.head.appendChild(style);
+      });
+    }
+
+    return true;
+  })();
+`;
 const GYM_REDIRECT_SCRIPT = `
   (function () {
     if (window.__gymRedirectInstalled) return true;
@@ -173,10 +221,19 @@ export default function WebViewScreen() {
       ref={webViewRef}
       key={webViewUrl}
       source={{ uri: webViewUrl }}
-      injectedJavaScript={CALENDAR_BRIDGE_SCRIPT + GYM_REDIRECT_SCRIPT}
-      injectedJavaScriptBeforeContentLoaded={CALENDAR_BRIDGE_SCRIPT + GYM_REDIRECT_SCRIPT}
+      injectedJavaScript={CALENDAR_BRIDGE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT}
+      injectedJavaScriptBeforeContentLoaded={CALENDAR_BRIDGE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT}
       onMessage={onWebViewMessage}
       onLoadEnd={notifications.onLoadEnd}
+      bounces={false}
+      overScrollMode="never"
+      scalesPageToFit={false}
+      showsHorizontalScrollIndicator={false}
+      showsVerticalScrollIndicator={false}
+      allowsInlineMediaPlayback
+      mediaPlaybackRequiresUserAction={false}
+      setBuiltInZoomControls={false}
+      displayZoomControls={false}
       onShouldStartLoadWithRequest={(request) => {
         if (shouldRedirectToGymDashboard(request.url)) {
           redirectToGymDashboard();
