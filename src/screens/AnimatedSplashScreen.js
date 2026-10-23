@@ -92,7 +92,7 @@ export default function AnimatedSplashScreen({ onFinish, isReady = false }) {
         ]}
       >
         <Image
-          source={require('../../assets/logo/ftx-icon.png')}
+          source={require('../../assets/logo/ftx-logo-circle.png')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -119,6 +119,11 @@ const styles = StyleSheet.create({
     height: 220,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 8,
   },
 
   logo: {

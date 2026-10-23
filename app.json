@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/logo/ftx-icon.png",
     "splash": {
-      "image": "./assets/logo/ftx-icon.png",
+      "image": "./assets/logo/ftx-logo-circle.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
