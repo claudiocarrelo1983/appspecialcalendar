@@ -93,7 +93,6 @@ export default function AnimatedSplashScreen({ onFinish, isReady = false }) {
         ]}
       >
         <Image
-        <Image
           source={require('../../assets/logo/ftx-logo-circle.png')}
           style={styles.logo}
           resizeMode="contain"
