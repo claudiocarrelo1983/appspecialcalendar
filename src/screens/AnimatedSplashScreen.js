@@ -1,119 +1,99 @@
-import React, { useEffect, useRef } from 'react';
-import {
-  Animated,
-  StyleSheet,
-  StatusBar,
-  View,
-  Image,
-  Text,
-} from 'react-native';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { Animated, StyleSheet } from 'react-native';
 
-export default function AnimatedSplashScreen({ onFinish }) {
-
-  const opacity = useRef(new Animated.Value(1)).current;
-  const fadeIn = useRef(new Animated.Value(0)).current;
+export default function AnimatedSplashScreen({
+  onFinish,
+  onLayoutReady,
+  isReady = false,
+}) {
+  // Start fully visible so the handoff from the native splash is seamless
+  // (same white bg + centered 200px logo, no "FTX Team" text).
+  const containerOpacity = useRef(new Animated.Value(1)).current;
   const scale = useRef(new Animated.Value(1)).current;
+  const finishedRef = useRef(false);
+  const minTimePassedRef = useRef(false);
+  const layoutReadyFiredRef = useRef(false);
 
-  useEffect(() => {
+  const triggerFadeOut = useCallback(() => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
 
-    const animation = Animated.sequence([
-
-      // 🔹 Fade IN
-      Animated.timing(fadeIn, {
-        toValue: 1,
+    Animated.parallel([
+      Animated.timing(containerOpacity, {
+        toValue: 0,
         duration: 400,
         useNativeDriver: true,
       }),
-
-      // 🔹 Delay
-      Animated.delay(1500),
-
-      // 🔹 Fade OUT + zoom leve
-      Animated.parallel([
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scale, {
-          toValue: 1.05,
-          duration: 500,
-          useNativeDriver: true,
-        }),
-      ]),
-    ]);
-
-    animation.start(({ finished }) => {
-      if (finished && onFinish) onFinish();
+      Animated.timing(scale, {
+        toValue: 1.05,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      if (onFinish) onFinish();
     });
+  }, [containerOpacity, scale, onFinish]);
 
-    return () => animation.stop();
+  useEffect(() => {
+    const minTimer = setTimeout(() => {
+      minTimePassedRef.current = true;
+      if (isReady) {
+        triggerFadeOut();
+      }
+    }, 1200);
 
-  }, [onFinish]);
+    // Keep splash up longer so a stuck site loading-overlay never flashes white.
+    const fallbackTimer = setTimeout(() => {
+      triggerFadeOut();
+    }, 12000);
+
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(fallbackTimer);
+    };
+  }, [isReady, triggerFadeOut]);
+
+  useEffect(() => {
+    if (isReady && minTimePassedRef.current) {
+      triggerFadeOut();
+    }
+  }, [isReady, triggerFadeOut]);
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeIn }]}>
-
-      {/*Status Bar */}
-      <StatusBar
-        translucent
-        backgroundColor="transparent"
-        barStyle="dark-content"
+    <Animated.View
+      style={[styles.container, { opacity: containerOpacity }]}
+      pointerEvents="none"
+      onLayout={() => {
+        if (layoutReadyFiredRef.current) return;
+        layoutReadyFiredRef.current = true;
+        if (onLayoutReady) onLayoutReady();
+      }}
+    >
+      <Animated.Image
+        source={require('../../assets/logo/ftx-logo-circle.png')}
+        style={[styles.logo, { transform: [{ scale }] }]}
+        resizeMode="contain"
+        accessibilityLabel="FTX Team logo"
       />
-
-      {/*BACKGROUND */}
-      <View style={styles.background} />
-
-      {/*LOGO */}
-      <Animated.View
-        style={[
-          styles.logoWrapper,
-          {
-            opacity,
-            transform: [{ scale }],
-          },
-        ]}
-      >
-        <Image
-          source={require('../../assets/logo/ftx-icon.png')}
-          style={styles.logo}
-          resizeMode="contain"
-          accessibilityLabel="FTX Team logo"
-        />
-        <Text style={styles.attribution}>by Special Calendar</Text>
-      </Animated.View>
-
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    backgroundColor: '#ffffff',
+    zIndex: 99999,
+    elevation: 99999,
     justifyContent: 'center',
     alignItems: 'center',
   },
-
-  background: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: '#fff',
-  },
-
-  logoWrapper: {
-    width: 220,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
   logo: {
-    width: 220,
-    height: 220,
-  },
-
-  attribution: {
-    marginTop: 20,
-    color: '#60666b',
-    fontSize: 14,
-    textAlign: 'center',
+    width: 200,
+    height: 200,
   },
 });
