@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, BackHandler, Platform, StyleSheet, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 import usePushNotifications from '../utils/usePushNotifications';
+import { WEBVIEW_SCROLL_SCRIPT } from '../utils/webViewScroll';
 import { trustedCalendarOrigin } from '../utils/calendarBridge';
 
 const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://c20260531125358085.specialcalendar.com').replace(/\/$/, '');
@@ -118,44 +119,8 @@ const SITE_OVERLAY_HIDE_SCRIPT = `
 `;
 const NATIVE_FEEL_SCRIPT = `
   (function () {
-    // 1. WebKit Engine Gesture & Multi-Touch Zoom Prevention
-    function preventZoomGesture(e) {
-      if (e.preventDefault) e.preventDefault();
-    }
-
-    try {
-      window.addEventListener('gesturestart', preventZoomGesture, { passive: false, capture: true });
-      window.addEventListener('gesturechange', preventZoomGesture, { passive: false, capture: true });
-      window.addEventListener('gestureend', preventZoomGesture, { passive: false, capture: true });
-      document.addEventListener('gesturestart', preventZoomGesture, { passive: false, capture: true });
-      document.addEventListener('gesturechange', preventZoomGesture, { passive: false, capture: true });
-      document.addEventListener('gestureend', preventZoomGesture, { passive: false, capture: true });
-    } catch (err) {}
-
-    function handleTouchMulti(e) {
-      if (e.touches && e.touches.length > 1) {
-        if (e.preventDefault) e.preventDefault();
-      }
-    }
-
-    try {
-      window.addEventListener('touchstart', handleTouchMulti, { passive: false, capture: true });
-      window.addEventListener('touchmove', handleTouchMulti, { passive: false, capture: true });
-      document.addEventListener('touchstart', handleTouchMulti, { passive: false, capture: true });
-      document.addEventListener('touchmove', handleTouchMulti, { passive: false, capture: true });
-    } catch (err) {}
-
-    // Prevent double-tap to zoom
-    var lastTouchEnd = 0;
-    try {
-      document.addEventListener('touchend', function (e) {
-        var now = Date.now();
-        if (now - lastTouchEnd <= 300) {
-          if (e.preventDefault) e.preventDefault();
-        }
-        lastTouchEnd = now;
-      }, { passive: false, capture: true });
-    } catch (err) {}
+    if (window.__ftxNativeFeelInstalled) return true;
+    window.__ftxNativeFeelInstalled = true;
 
     // 2. Viewport Meta Tag Enforcer (with safe DOM checks)
     function applyViewport() {
@@ -190,7 +155,7 @@ const NATIVE_FEEL_SCRIPT = `
         style.type = 'text/css';
         style.innerHTML = [
           'html, body {',
-          '  touch-action: pan-x pan-y !important;',
+          '  touch-action: manipulation !important;',
           '  -webkit-text-size-adjust: 100% !important;',
           '  -webkit-overflow-scrolling: touch;',
           '  overscroll-behavior-y: none;',
@@ -498,8 +463,8 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       source={{ uri: webViewUrl }}
       style={styles.webView}
       containerStyle={styles.container}
-      injectedJavaScript={CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT}
-      injectedJavaScriptBeforeContentLoaded={CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT}
+      injectedJavaScript={CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT}
+      injectedJavaScriptBeforeContentLoaded={CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT}
       onMessage={onWebViewMessage}
       onLoadEnd={handleLoadEnd}
       onError={(syntheticEvent) => {
@@ -510,6 +475,8 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       onHttpError={(syntheticEvent) => {
         console.warn('[WebView] HTTP error', syntheticEvent?.nativeEvent?.statusCode);
       }}
+      scrollEnabled={true}
+      nestedScrollEnabled={true}
       bounces={false}
       overScrollMode="never"
       scalesPageToFit={false}

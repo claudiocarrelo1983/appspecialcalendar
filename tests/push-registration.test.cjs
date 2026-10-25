@@ -38,3 +38,20 @@ test('native token, app identity and secure installation are registered after br
  hook.onLoadEnd({nativeEvent:{url:'https://specialcalendar.com/dashboard-gym'}});await new Promise(setImmediate);assert.equal(commands.length,3);
  hook.onNavigation('https://evil.example');hook.onMessage({type:'specialcalendar.push.ready',version:1});await new Promise(setImmediate);assert.equal(commands.length,3);
 });
+test('temporary token refresh failure preserves a valid permitted device; explicit OS denial still disables it',async()=>{
+ const effects=[],commands=[];let tokenCalls=0,permission='granted';
+ const module=load('usePushNotifications.js',{
+  react:{useCallback:fn=>fn,useEffect:fn=>effects.push(fn),useRef:current=>({current})},
+  'react-native':{Platform:{OS:'ios'},AppState:{addEventListener:()=>({remove(){}})}},
+  'expo-constants':{easConfig:{projectId:'11111111-1111-4111-8111-111111111111'},expoConfig:{ios:{bundleIdentifier:'fixture.app'}}},
+  './notificationModule':{getNotifications:()=>({IosAuthorizationStatus:{PROVISIONAL:3,EPHEMERAL:4},getPermissionsAsync:async()=>({granted:permission==='granted',status:permission,canAskAgain:false}),getExpoPushTokenAsync:async()=>{if(++tokenCalls>1)throw Error('temporary network failure');return {data:'ExpoPushToken[valid_cached_123]'};},addNotificationResponseReceivedListener:()=>({remove(){}}),addPushTokenListener:()=>({remove(){}}),getLastNotificationResponseAsync:async()=>null})},
+  'expo-device':{isDevice:true},
+  './pushInstallation':{getPushInstallation:async()=>({installationId:'a'.repeat(32),installationSecret:'b'.repeat(64)}),pushRegistrationScript:payload=>{commands.push(payload);return 'true;';}},
+ });
+ const hook=module.default({current:{injectJavaScript(){}}},'https://specialcalendar.com/login',()=>{});
+ const drain=async()=>{await new Promise(setImmediate);await new Promise(setImmediate);};
+ effects[0]();await drain();assert.equal(commands.at(-1).enabled,true);
+ hook.onMessage({type:'gym.notifications.request',version:1});await drain();
+ assert.equal(commands.at(-1).enabled,true);assert.equal(commands.at(-1).token,'ExpoPushToken[valid_cached_123]');
+ permission='denied';hook.onMessage({type:'gym.notifications.request',version:1});await drain();assert.equal(commands.at(-1).enabled,false);
+});

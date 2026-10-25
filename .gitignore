@@ -53,3 +53,9 @@ assets/adi-registration.properties
 # generated native folders
 /ios
 /android
+
+# Firebase Android configuration (provided locally)
+/google-services.json
+
+# Firebase iOS configuration (provided locally)
+/GoogleService-Info.plist

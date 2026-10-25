@@ -1,0 +1,64 @@
+# Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+
+# dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# build outputs
+build/
+**/build/
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro
+.metro-health-check*
+
+# debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# macOS
+.DS_Store
+*.pem
+
+# local env files
+.env
+.env.*
+
+# credentials and signing configuration
+**/*credential*
+**/*secret*
+**/*signing*.properties
+**/key.properties
+**/keystore.properties
+assets/adi-registration.properties
+
+# typescript
+*.tsbuildinfo
+
+# generated native folders
+/ios
+/android
+
+# Firebase Android configuration (provided locally)
+/google-services.json
+
+# Include Firebase configuration when uploading this local project to EAS.
+!google-services.json
+
+# Include Firebase iOS configuration in local EAS uploads.
+!GoogleService-Info.plist

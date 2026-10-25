@@ -37,7 +37,7 @@ export async function registerPushNotifications(requestPermission = false) {
       Notifications.IosAuthorizationStatus.PROVISIONAL,
       Notifications.IosAuthorizationStatus.EPHEMERAL,
     ].includes(permission.ios?.status));
-    const state = { permission: permission.status, canAskAgain: permission.canAskAgain, expoPushToken: null };
+    const state = { permission: permission.status, permissionGranted: Boolean(allowed), canAskAgain: permission.canAskAgain, expoPushToken: null };
     if (!allowed) return state;
     const Device = require('expo-device');
     if (!Device.isDevice) return { ...state, error: 'physical-device-required' };
@@ -77,6 +77,9 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
       if (new URL(currentUrl.current).origin !== origin) return;
       const token = result.expoPushToken || result.previousExpoPushToken;
       if (!token) return;
+      // A native/network failure is not permission revocation. Do not disable a
+      // known installation unless the OS explicitly reports denied permission.
+      if (!result.expoPushToken && result.error && result.permission !== 'denied') return;
       const installation = await getPushInstallation();
       if (new URL(currentUrl.current).origin !== origin) return;
       const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId;
@@ -106,7 +109,9 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
     if (registration.current) return registration.current;
     registration.current = registerPushNotifications(requestPermission).then(async (result) => {
       const previousToken = state.current.expoPushToken || state.current.previousExpoPushToken;
-      state.current = { ...result, previousExpoPushToken: result.expoPushToken ? null : (previousToken || null) };
+      const currentToken = result.expoPushToken || (result.permissionGranted ? previousToken : null);
+      state.current = { ...result, expoPushToken: currentToken || null,
+        previousExpoPushToken: currentToken ? null : (previousToken || null) };
       publish();
       await syncWithServer(state.current);
       return result;
