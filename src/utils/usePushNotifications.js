@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { getNotifications } from './notificationModule';
+import { getPushInstallation, pushRegistrationScript } from './pushInstallation';
 
 export function notificationTarget(data, startUrl) {
   if (!data || typeof data.url !== 'string' || data.url.length > 4096) return null;
@@ -20,7 +21,7 @@ export async function registerPushNotifications(requestPermission = false) {
     const Notifications = getNotifications();
     if (!Notifications) throw new Error('Notification module unavailable');
     if (Platform.OS === 'android') {
-      await Notifications.setNotificationChannelAsync('default', {
+      await Notifications.setNotificationChannelAsync('class-reminders', {
         name: 'FTX Team',
         importance: Notifications.AndroidImportance.DEFAULT,
         sound: 'default',
@@ -68,6 +69,31 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
   const currentUrl = useRef(startUrl);
   const state = useRef({ permission: 'undetermined', expoPushToken: null });
   const registration = useRef(null);
+  const sequence = useRef(0);
+  const pendingCommand = useRef(null);
+
+  const syncWithServer = useCallback(async (result) => {
+    try {
+      if (new URL(currentUrl.current).origin !== origin) return;
+      const token = result.expoPushToken || result.previousExpoPushToken;
+      if (!token) return;
+      const installation = await getPushInstallation();
+      if (new URL(currentUrl.current).origin !== origin) return;
+      const projectId = Constants.easConfig?.projectId || Constants.expoConfig?.extra?.eas?.projectId;
+      const appId = Platform.OS === 'ios'
+        ? Constants.expoConfig?.ios?.bundleIdentifier : Constants.expoConfig?.android?.package;
+      if (!appId || !projectId) return;
+      const id = `native-register-${Date.now()}-${++sequence.current}`;
+      pendingCommand.current = id;
+      webViewRef.current?.injectJavaScript(pushRegistrationScript({
+        ...installation, appId, projectId, token, platform: Platform.OS,
+        enabled: Boolean(result.expoPushToken),
+      }, id, origin));
+    } catch {
+      // Never expose native credentials or tokens in logs or WebView status.
+      state.current = {...state.current, registrationError: 'installation-unavailable'};
+    }
+  }, [origin, webViewRef]);
 
   const publish = useCallback(() => {
     try {
@@ -78,14 +104,15 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
 
   const register = useCallback(async (requestPermission) => {
     if (registration.current) return registration.current;
-    registration.current = registerPushNotifications(requestPermission).then((result) => {
+    registration.current = registerPushNotifications(requestPermission).then(async (result) => {
       const previousToken = state.current.expoPushToken || state.current.previousExpoPushToken;
       state.current = { ...result, previousExpoPushToken: result.expoPushToken ? null : (previousToken || null) };
       publish();
+      await syncWithServer(state.current);
       return result;
     }).finally(() => { registration.current = null; });
     return registration.current;
-  }, [publish]);
+  }, [publish, syncWithServer]);
 
   useEffect(() => {
     const Notifications = getNotifications();
@@ -125,7 +152,8 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
   const onLoadEnd = useCallback((event) => {
     currentUrl.current = event.nativeEvent.url || startUrl;
     publish();
-  }, [publish, startUrl]);
+    syncWithServer(state.current);
+  }, [publish, startUrl, syncWithServer]);
 
   const onNavigation = useCallback((url) => {
     currentUrl.current = url;
@@ -133,6 +161,14 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
 
   const onMessage = useCallback((message) => {
     if (message?.version !== 1) return false;
+    if (message.type === 'specialcalendar.push.ready') {
+      syncWithServer(state.current);
+      return true;
+    }
+    if (message.type === 'specialcalendar.push.result') {
+      if (message.id === pendingCommand.current) pendingCommand.current = null;
+      return true;
+    }
     if (message.type === 'gym.notifications.request') {
       register(true);
       return true;
@@ -142,7 +178,7 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
       return true;
     }
     return false;
-  }, [register]);
+  }, [register, syncWithServer]);
 
   return { onLoadEnd, onNavigation, onMessage };
 }

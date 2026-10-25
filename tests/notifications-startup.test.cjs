@@ -70,6 +70,7 @@ function hookWith(notifications, device = () => ({ isDevice: true })) {
     'react-native': () => ({ Platform: { OS: 'ios' }, AppState: {} }),
     'expo-constants': () => ({ easConfig: { projectId: 'test-project' } }),
     './notificationModule': () => ({ getNotifications: () => notifications }),
+    './pushInstallation': () => ({ getPushInstallation: async () => ({installationId:'a'.repeat(32),installationSecret:'b'.repeat(64)}), pushRegistrationScript: () => 'true;' }),
     'expo-device': device,
   });
   hook.default({ current: { injectJavaScript() {} } }, 'https://specialcalendar.com/login', () => {});
