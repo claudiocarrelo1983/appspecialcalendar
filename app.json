@@ -12,6 +12,7 @@
     ],
     "ios": {
       "supportsTablet": true,
+      "requireFullScreen": true,
       "bundleIdentifier": "com.ftxteam.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -37,19 +38,15 @@
       "policy": "appVersion"
     },
     "plugins": [
-      [
-        "expo-calendar",
-        {
-          "calendarPermission": "Permitir que a FTX Team abra o calendário para adicionar aulas.",
-          "remindersPermission": false
-        }
-      ],
       "expo-web-browser",
       [
         "expo-build-properties",
         {
           "android": {
             "enableMinifyInReleaseBuilds": true
+          },
+          "ios": {
+            "enableSceneSupport": true
           }
         }
       ],
@@ -57,6 +54,20 @@
         "expo-notifications",
         {
           "defaultChannel": "default"
+        }
+      ],
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logo/ftx-logo-circle.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff",
+          "dark": {
+            "image": "./assets/logo/ftx-logo-circle.png",
+            "backgroundColor": "#ffffff"
+          }
         }
       ],
       "expo-secure-store"
