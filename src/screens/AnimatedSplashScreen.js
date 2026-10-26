@@ -71,7 +71,7 @@ export default function AnimatedSplashScreen({
     >
       <Animated.View style={styles.logoFrame}>
       <Animated.Image
-        source={require('../../assets/logo/ftx-icon.png')}
+        source={require('../../assets/logo/ftx-splash.png')}
         style={[styles.logo, { transform: [{ scale }] }]}
         resizeMode="contain"
         accessibilityLabel="FTX Team logo"
@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderWidth: 1,
     borderColor: '#dce3df',
-    borderRadius: 24,
+    borderRadius: 52,
     backgroundColor: '#fff',
   },
   logo: {
