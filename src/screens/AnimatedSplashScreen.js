@@ -71,7 +71,7 @@ export default function AnimatedSplashScreen({
     >
       <Animated.View style={styles.logoFrame}>
       <Animated.Image
-        source={require('../../assets/logo/ftx-logo-circle.png')}
+        source={require('../../assets/logo/ftx-icon.png')}
         style={[styles.logo, { transform: [{ scale }] }]}
         resizeMode="contain"
         accessibilityLabel="FTX Team logo"
