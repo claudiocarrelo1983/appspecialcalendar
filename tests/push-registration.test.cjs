@@ -36,6 +36,14 @@ test('native token, app identity and secure installation are registered after br
  assert.equal(commands.length,1);assert.equal(commands[0].payload.installationSecret,installation.installationSecret);assert.equal(commands[0].payload.appId,'fixture.app');assert.equal(commands[0].payload.enabled,true);assert.equal(commands[0].payload.platform,'ios');
  assert.equal(hook.onMessage({type:'specialcalendar.push.ready',version:1}),true);await new Promise(setImmediate);assert.equal(commands.length,2);
  hook.onLoadEnd({nativeEvent:{url:'https://specialcalendar.com/dashboard-gym'}});await new Promise(setImmediate);assert.equal(commands.length,3);
+ const beforeReply=scripts.length;
+ hook.onMessage({type:'specialcalendar.push.result',version:1,id:'unrelated-command',success:false,error:'request-rejected-403'});
+ assert.equal(scripts.length,beforeReply);
+ hook.onMessage({type:'specialcalendar.push.result',version:1,id:commands.at(-1).id,success:false,error:'request-rejected-403'});
+ assert.equal(scripts.length,beforeReply+1);
+ assert.ok(scripts.at(-1).includes('registration-forbidden'));
+ assert.ok(scripts.at(-1).includes('"permission":"granted"'));
+ assert.ok(!scripts.at(-1).includes(installation.installationSecret));
  hook.onNavigation('https://evil.example');hook.onMessage({type:'specialcalendar.push.ready',version:1});await new Promise(setImmediate);assert.equal(commands.length,3);
 });
 test('temporary token refresh failure preserves a valid permitted device; explicit OS denial still disables it',async()=>{

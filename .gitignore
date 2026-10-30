@@ -59,3 +59,5 @@ assets/adi-registration.properties
 
 # Firebase iOS configuration (provided locally)
 /GoogleService-Info.plist
+/firebase/**/GoogleService-Info.plist
+/firebase/**/google-services.json

@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { Animated, StyleSheet } from 'react-native';
+import Constants from 'expo-constants';
+import { companySplashImage } from '../utils/companyBranding';
 
 export default function AnimatedSplashScreen({
   onFinish,
@@ -71,10 +73,10 @@ export default function AnimatedSplashScreen({
     >
       <Animated.View style={styles.logoFrame}>
       <Animated.Image
-        source={require('../../assets/logo/ftx-splash.png')}
+        source={companySplashImage()}
         style={[styles.logo, { transform: [{ scale }] }]}
         resizeMode="contain"
-        accessibilityLabel="FTX Team logo"
+        accessibilityLabel={`${Constants.expoConfig?.name || 'Special Calendar'} logo`}
       />
       </Animated.View>
     </Animated.View>

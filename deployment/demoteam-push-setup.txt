@@ -1,0 +1,40 @@
+Demo Special Calendar push notifications
+
+Confirmed on 27 October 2026:
+The live website's GET /mobile-notifications/context endpoint returns HTTP 403
+"Unknown application." for com.demoteam.app and EAS project
+2c8e7c35-68dc-40c6-b7ea-461f61de6c93. This prevents device registration on both
+Android and iOS, independently of notification permission on the phone.
+
+Required server change:
+Merge the entry returned by demoteam-push-registry.php into the existing
+mobilePushApps array in the live website's common/config/params-local.php.
+If the server uses MOBILE_PUSH_APPS_JSON instead, add the equivalent entry there.
+Keep all existing app entries. Use the demo company's exact origin and pagecode.
+Do not replace the whole server configuration with the supplied snippet.
+EXPO_ACCESS_TOKEN_FTX names the existing credential for this shared EAS project;
+reuse the appropriate server environment variable if production names it differently.
+Do not copy credentials into the mobile app or commit them to Git.
+
+Read-only verification (no login needed):
+https://c20261027151705426.specialcalendar.com/mobile-notifications/context?appId=com.demoteam.app&projectId=2c8e7c35-68dc-40c6-b7ea-461f61de6c93
+Expected when logged out: HTTP 200 with {"authenticated":false}.
+The endpoint must continue rejecting unknown apps and unauthorized company origins.
+
+After the server change:
+Open the installed demo app, allow notifications, and sign in to the demo company.
+Reopen or refresh its dashboard so the app registers its device with the website.
+An app rebuild alone cannot fix a missing server registry entry.
+
+If registration succeeds but delivery still fails:
+Check push tickets and receipts first. Verify EAS credentials for com.demoteam.app:
+  npx eas-cli@latest credentials --platform android
+  npx eas-cli@latest credentials --platform ios
+Android needs FCM V1 service credentials matching special-calendar-ba4a6.
+iOS needs an APNs key assigned to the demo app and push-enabled provisioning.
+Do not revoke shared APNs keys. Firebase's iOS plist does not configure APNs for Expo.
+Class reminders also require the existing server reminder worker to be running.
+
+The app now publishes sanitized registrationStatus and registrationError fields
+through window.__specialCalendarNotifications, including registration-forbidden
+for a rejected HTTP 403 response. No test push was sent by this diagnostic change.

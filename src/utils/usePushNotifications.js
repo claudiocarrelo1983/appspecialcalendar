@@ -3,17 +3,27 @@ import { AppState, Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { getNotifications } from './notificationModule';
 import { getPushInstallation, pushRegistrationScript } from './pushInstallation';
+import { notificationTarget, pushRecovery } from './pushNotificationNavigation';
 
-export function notificationTarget(data, startUrl) {
-  if (!data || typeof data.url !== 'string' || data.url.length > 4096) return null;
-  try {
-    const base = new URL(startUrl);
-    const target = new URL(data.url, base);
-    if (!['https:', 'http:'].includes(target.protocol) || target.origin !== base.origin || target.username || target.password) return null;
-    return target.href;
-  } catch {
-    return null;
+export function pushRegistrationState(message) {
+  if (message.success === true && message.result?.success === true) {
+    return {
+      registrationStatus: message.result.enabled === true ? 'registered' : 'disabled',
+      registrationError: null,
+    };
   }
+  // Publish only known error codes, never arbitrary server responses or credentials.
+  const errors = {
+    'login-required': 'login-required',
+    'request-rejected-401': 'login-required',
+    'request-rejected-403': 'registration-forbidden',
+    'csrf-unavailable': 'csrf-unavailable',
+  };
+  return {
+    registrationStatus: 'failed',
+    registrationError: Object.prototype.hasOwnProperty.call(errors, message.error)
+      ? errors[message.error] : 'server-registration-failed',
+  };
 }
 
 export async function registerPushNotifications(requestPermission = false) {
@@ -22,7 +32,7 @@ export async function registerPushNotifications(requestPermission = false) {
     if (!Notifications) throw new Error('Notification module unavailable');
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync('class-reminders', {
-        name: 'FTX Team',
+        name: Constants.expoConfig?.name || 'Class reminders',
         importance: Notifications.AndroidImportance.DEFAULT,
         sound: 'default',
       });
@@ -67,6 +77,7 @@ export function notificationStateScript(state, origin) {
 export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
   const origin = new URL(startUrl).origin;
   const currentUrl = useRef(startUrl);
+  const openedNotification = useRef(null), pendingOpen = useRef(null), tapSequence = useRef(0);
   const state = useRef({ permission: 'undetermined', expoPushToken: null });
   const registration = useRef(null);
   const sequence = useRef(0);
@@ -126,14 +137,23 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
       return;
     }
     let mounted = true;
-    const handled = new Set();
+    let lastKey = null, lastTap = 0;
     const handleResponse = (response) => {
       if (!mounted || !response?.notification) return;
       const key = response.notification.request.identifier + ':' + response.actionIdentifier;
-      if (handled.has(key)) return;
-      handled.add(key);
+      const tappedAt = Date.now();
+      if (lastKey === key && tappedAt - lastTap < 1000) return;
+      lastKey = key; lastTap = tappedAt;
       const url = notificationTarget(response.notification.request.content.data, startUrl);
-      if (url) onOpenUrl(url);
+      if (url) {
+        const content = response.notification.request.content, id = `${tappedAt}-${++tapSequence.current}`;
+        const target = new URL(url); target.searchParams.set('_push_open', id);
+        openedNotification.current = {id,
+          title: typeof content.title === 'string' ? content.title.slice(0,200) : '',
+          body: typeof content.body === 'string' ? content.body.slice(0,2000) : ''};
+        pendingOpen.current = {...openedNotification.current, at:tappedAt, url:target.href};
+        onOpenUrl(target.href);
+      }
       Notifications.clearLastNotificationResponseAsync().catch(() => {});
     };
     const subscriptions = [];
@@ -158,7 +178,29 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
     currentUrl.current = event.nativeEvent.url || startUrl;
     publish();
     syncWithServer(state.current);
-  }, [publish, startUrl, syncWithServer]);
+    if (openedNotification.current && new URL(currentUrl.current).origin === origin) {
+      // Display the original notification text even when a class has finished.
+      webViewRef.current?.injectJavaScript(`(function(){
+        if(window.location.origin!==${JSON.stringify(origin)})return true;
+        window.__specialCalendarOpenedNotification=${JSON.stringify(openedNotification.current)};
+        window.dispatchEvent(new CustomEvent('specialcalendar:notification-opened'));
+        return true;
+      })();true;`);
+    }
+    pendingOpen.current = null;
+  }, [publish, startUrl, syncWithServer, origin, webViewRef]);
+
+  const onHttpError = useCallback((event) => {
+    const recovery = pushRecovery(event?.nativeEvent, pendingOpen.current, startUrl);
+    if (!recovery) return false;
+    const notice = pendingOpen.current;
+    pendingOpen.current = null;
+    // Use the same company-themed web dialog for stale notifications too.
+    openedNotification.current = {id:notice.id,
+      title:recovery.title || '', body:recovery.body || '', unavailable:true};
+    onOpenUrl(recovery.url);
+    return true;
+  }, [startUrl, onOpenUrl]);
 
   const onNavigation = useCallback((url) => {
     currentUrl.current = url;
@@ -171,7 +213,11 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
       return true;
     }
     if (message.type === 'specialcalendar.push.result') {
-      if (message.id === pendingCommand.current) pendingCommand.current = null;
+      if (pendingCommand.current && message.id === pendingCommand.current) {
+        pendingCommand.current = null;
+        state.current = { ...state.current, ...pushRegistrationState(message) };
+        publish();
+      }
       return true;
     }
     if (message.type === 'gym.notifications.request') {
@@ -183,7 +229,7 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
       return true;
     }
     return false;
-  }, [register, syncWithServer]);
+  }, [publish, register, syncWithServer]);
 
-  return { onLoadEnd, onNavigation, onMessage };
+  return { onLoadEnd, onNavigation, onMessage, onHttpError };
 }

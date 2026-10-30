@@ -8,32 +8,71 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "channel": "development",
+      "channel": "ftx-development",
       "env": {
-        "NODE_ENV": "development"
+        "NODE_ENV": "development",
+        "APP_DOMAIN": "c20260531125358085.specialcalendar.com",
+        "EXPO_PUBLIC_SITE_URL": "https://c20260531125358085.specialcalendar.com"
       }
     },
     "preview": {
       "developmentClient": false,
       "distribution": "internal",
+      "env": {
+        "APP_DOMAIN": "c20260531125358085.specialcalendar.com",
+        "EXPO_PUBLIC_SITE_URL": "https://c20260531125358085.specialcalendar.com"
+      },
       "android": {
         "buildType": "apk"
+      },
+      "autoIncrement": true,
+      "channel": "ftx-preview"
+    },
+    "preview-demo": {
+      "extends": "preview",
+      "channel": "demo-preview",
+      "env": {
+        "APP_DOMAIN": "c20261027151705426.specialcalendar.com",
+        "EXPO_PUBLIC_SITE_URL": "https://c20261027151705426.specialcalendar.com"
+      }
+    },
+    "preview-ftx": {
+      "extends": "preview",
+      "channel": "ftx-preview",
+      "env": {
+        "APP_DOMAIN": "c20260531125358085.specialcalendar.com",
+        "EXPO_PUBLIC_SITE_URL": "https://c20260531125358085.specialcalendar.com"
+      }
+    },
+    "production-demo": {
+      "extends": "production",
+      "channel": "demo-production",
+      "env": {
+        "APP_DOMAIN": "c20261027151705426.specialcalendar.com",
+        "EXPO_PUBLIC_SITE_URL": "https://c20261027151705426.specialcalendar.com"
+      }
+    },
+    "production-ftx": {
+      "extends": "production",
+      "channel": "ftx-production",
+      "env": {
+        "APP_DOMAIN": "c20260531125358085.specialcalendar.com",
+        "EXPO_PUBLIC_SITE_URL": "https://c20260531125358085.specialcalendar.com"
       }
     },
     "production": {
       "autoIncrement": true,
-      "channel": "production",
+      "channel": "ftx-production",
       "env": {
-        "EXPO_PUBLIC_SITE_URL": "https://c20260531125358085.specialcalendar.com",
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "APP_DOMAIN": "c20260531125358085.specialcalendar.com",
+        "EXPO_PUBLIC_SITE_URL": "https://c20260531125358085.specialcalendar.com"
       }
     }
   },
   "submit": {
     "production": {
-      "ios": {
-        "ascAppId": "6821627994"
-      }
+      "ios": {}
     }
   }
 }

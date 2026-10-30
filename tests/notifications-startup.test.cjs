@@ -114,3 +114,29 @@ test('a missing device module cannot terminate registration', async () => {
   }, () => { throw new Error("Cannot find native module 'ExpoDevice'"); });
   assert.equal((await hook.registerPushNotifications()).error, 'notifications-unavailable');
 });
+
+test('a forbidden server registration is reported separately from OS permission', () => {
+  const { hook } = hookWith(null);
+  const result = hook.pushRegistrationState({ success: false, error: 'request-rejected-403' });
+  assert.equal(result.registrationStatus, 'failed');
+  assert.equal(result.registrationError, 'registration-forbidden');
+  assert.equal(result.permission, undefined);
+});
+
+test('successful and preference-disabled registrations clear previous errors', () => {
+  const { hook } = hookWith(null);
+  for (const enabled of [true, false]) {
+    const result = hook.pushRegistrationState({ success: true, result: { success: true, enabled } });
+    assert.equal(result.registrationStatus, enabled ? 'registered' : 'disabled');
+    assert.equal(result.registrationError, null);
+  }
+});
+
+test('registration diagnostics do not expose arbitrary response contents', () => {
+  const { hook } = hookWith(null);
+  for (const error of ['synthetic-private-server-response', '__proto__', 'constructor', undefined]) {
+    const result = hook.pushRegistrationState({ success: false, error });
+    assert.equal(result.registrationError, 'server-registration-failed');
+    assert.equal(result.registrationStatus, 'failed');
+  }
+});

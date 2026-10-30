@@ -1,15 +1,25 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, BackHandler, Platform, StyleSheet, View } from 'react-native';
+import { Alert, BackHandler, Linking, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
+import NativeGymShell from './NativeGymShell';
+import companyAppConfig from '../utils/companyAppConfig';
+import useNativeGym from '../utils/useNativeGym';
+import Constants from 'expo-constants';
+import { FITNESS_OAUTH_BRIDGE_SCRIPT, createFitnessOAuthHandler, fitnessOAuthAllowed, fitnessOAuthReplyScript } from '../utils/fitnessOAuth';
 import usePushNotifications from '../utils/usePushNotifications';
 import { WEBVIEW_SCROLL_SCRIPT } from '../utils/webViewScroll';
+import { WEBVIEW_MODAL_SCRIPT } from '../utils/webViewModals';
 import { trustedCalendarOrigin } from '../utils/calendarBridge';
+import { CALENDAR_BRIDGE_SCRIPT, createCalendarMessageHandler } from '../utils/nativeCalendar';
+import { classLinkTarget } from '../utils/classLinks';
+import { HEALTH_BRIDGE_SCRIPT, handleHealthMessage, healthReplyScript, healthBridgeAllowed } from '../utils/healthBridge';
 
-const SITE_URL = (process.env.EXPO_PUBLIC_SITE_URL || 'https://c20260531125358085.specialcalendar.com').replace(/\/$/, '');
+const COMPANY_APP = companyAppConfig();
+const SITE_URL = COMPANY_APP.siteUrl;
 const START_URL = `${SITE_URL}/`;
-const GYM_BOOKING_PATH = '/c20260531125358085/booking';
+const GYM_BOOKING_PATH = `/${COMPANY_APP.pagecode}/booking`;
 const GYM_DASHBOARD_URL = `${SITE_URL}/dashboard-gym`;
-const CALENDAR_BRIDGE_SCRIPT = 'window.__specialCalendarNativeCalendar = false; true;\n';
 // Porto keeps .loading-overlay up until theme.js fires ready. In WKWebView that
 // often never happens → blank white screen after our splash. Kill it with CSS +
 // a light poll (no MutationObserver — those flooded the bridge and froze paint).
@@ -157,7 +167,6 @@ const NATIVE_FEEL_SCRIPT = `
           'html, body {',
           '  touch-action: manipulation !important;',
           '  -webkit-text-size-adjust: 100% !important;',
-          '  -webkit-overflow-scrolling: touch;',
           '  overscroll-behavior-y: none;',
           '  margin: 0 !important;',
           '  padding: 0 !important;',
@@ -390,11 +399,59 @@ function isLoginUrl(url) {
 }
 
 export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) {
+  const screenRef = useRef(null);
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const { bottom: safeBottom } = useSafeAreaInsets();
+  const [bottomExtension, setBottomExtension] = useState(0);
+  const measureBottomSpace = useCallback(() => {
+    // Keep Android's footer above the system gesture / three-button area.
+    if (Platform.OS !== 'ios') { setBottomExtension(0); return; }
+    // Measure the stable parent, not the extended WebView, so repeated layouts
+    // cannot alternately add and remove the safe area.
+    screenRef.current?.measureInWindow((_x, y, _width, height) => {
+      const gap = windowHeight - y - height;
+      // AppContent reserves 24px on iOS when the device reports no bottom inset.
+      const reservedBottom = safeBottom > 0 ? safeBottom : (Platform.OS === 'ios' ? 24 : 0);
+      setBottomExtension(gap > 0 && gap <= reservedBottom + 1 ? Math.min(gap, reservedBottom) : 0);
+    });
+  }, [windowHeight, safeBottom]);
+  useEffect(() => {
+    measureBottomSpace();
+  }, [measureBottomSpace, windowWidth]);
+
   const webViewRef = useRef(null);
+  const calendarHandler = useRef(null);
+  if (!calendarHandler.current) calendarHandler.current = createCalendarMessageHandler(START_URL);
+  const fitnessOAuthHandler = useRef(null);
+  if (!fitnessOAuthHandler.current) fitnessOAuthHandler.current = createFitnessOAuthHandler(START_URL, Constants.expoConfig?.extra?.fitnessOAuthReturnUrl);
+  const healthDocument = useRef({url: START_URL, version: 0});
   const initialLoadFired = useRef(false);
   const [canGoBack, setCanGoBack] = useState(false);
   const [webViewUrl, setWebViewUrl] = useState(START_URL);
+  const [classLinkRevision, setClassLinkRevision] = useState(0);
   const notifications = usePushNotifications(webViewRef, START_URL, setWebViewUrl);
+  const nativeGym = useNativeGym(webViewRef, START_URL, setWebViewUrl);
+
+  useEffect(() => {
+    let disposed = false;
+    let receivedLink = false;
+    const openClassLink = (url) => {
+      const target = classLinkTarget(url, SITE_URL);
+      if (target && !disposed) {
+        setWebViewUrl(target);
+        // Opening the same class again must navigate even after browsing elsewhere in the WebView.
+        setClassLinkRevision((revision) => revision + 1);
+      }
+    };
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      receivedLink = true;
+      openClassLink(url);
+    });
+    Linking.getInitialURL().then((url) => {
+      if (!receivedLink) openClassLink(url);
+    }).catch(() => {});
+    return () => { disposed = true; subscription.remove(); };
+  }, []);
 
   const markReady = useCallback(() => {
     if (initialLoadFired.current) return;
@@ -403,13 +460,15 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
   }, [onInitialLoadComplete]);
 
   const handleLoadEnd = useCallback((syntheticEvent) => {
+    nativeGym.onLoadEnd(syntheticEvent);
     notifications.onLoadEnd(syntheticEvent);
     // Fallback only — prefer CONTENT_READY from the page after overlay is gone.
     setTimeout(markReady, 2500);
-  }, [notifications.onLoadEnd, markReady]);
+  }, [notifications.onLoadEnd, markReady, nativeGym.onLoadEnd]);
 
   const onWebViewMessage = useCallback(async ({ nativeEvent }) => {
     if (!nativeEvent || typeof nativeEvent.data !== 'string' || nativeEvent.data.length > 50000) return;
+    if (nativeGym.onMessage(nativeEvent)) return;
     let message;
     try { message = JSON.parse(nativeEvent.data); } catch { return; }
     if (message.type === 'CONTENT_READY') {
@@ -420,9 +479,31 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       onThemeChange(message.isDark, message.isLoginPage);
       return;
     }
+    if (message.type === 'sc.fitness.oauth') {
+      const version = healthDocument.current.version;
+      await fitnessOAuthHandler.current(message, nativeEvent.url || healthDocument.current.url, (reply) => {
+        if (healthDocument.current.version === version && fitnessOAuthAllowed(healthDocument.current.url, START_URL)) {
+          webViewRef.current?.injectJavaScript(fitnessOAuthReplyScript(reply));
+        }
+      });
+      return;
+    }
+    if (message.type === 'sc.health') {
+      const version = healthDocument.current.version;
+      await handleHealthMessage(message, nativeEvent.url || healthDocument.current.url, START_URL, (reply) => {
+        if (healthDocument.current.version === version && healthBridgeAllowed(healthDocument.current.url, START_URL)) {
+          webViewRef.current?.injectJavaScript(healthReplyScript(reply));
+        }
+      });
+      return;
+    }
+    if (message.type === 'gym.calendar.create') {
+      await calendarHandler.current(message, nativeEvent.url || webViewUrl);
+      return;
+    }
     if (!trustedCalendarOrigin(nativeEvent.url || webViewUrl, START_URL)) return;
     notifications.onMessage(message);
-  }, [markReady, notifications.onMessage, onThemeChange, webViewUrl]);
+  }, [markReady, notifications.onMessage, onThemeChange, webViewUrl, nativeGym.onMessage]);
 
   const shouldRedirectToGymDashboard = useCallback((url) => {
     if (!url || url === GYM_DASHBOARD_URL) return false;
@@ -437,12 +518,16 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
   }, []);
 
   const onAndroidBackPress = useCallback(() => {
+    if (nativeGym.data) {
+      if (nativeGym.screen === 'web' && nativeGym.webSection === 'bookings') return false;
+      nativeGym.openWeb('bookings'); return true;
+    }
     if (canGoBack) {
       webViewRef.current?.goBack();
       return true;
     }
     return false;
-  }, [canGoBack]);
+  }, [canGoBack, nativeGym.data, nativeGym.screen, nativeGym.webSection, nativeGym.openWeb]);
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
@@ -456,16 +541,18 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
   }, [onAndroidBackPress]);
 
   return (
-  <View style={styles.container}>
+  <View ref={screenRef} style={styles.container} onLayout={measureBottomSpace} collapsable={false}>
+    <NativeGymShell gym={nativeGym} bottomExtension={bottomExtension}>
     <WebView
       ref={webViewRef}
-      key={webViewUrl}
+      key={`${webViewUrl}:${classLinkRevision}`}
       source={{ uri: webViewUrl }}
       style={styles.webView}
       containerStyle={styles.container}
-      injectedJavaScript={CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT}
-      injectedJavaScriptBeforeContentLoaded={CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT}
+      injectedJavaScript={nativeGym.injectedScript + FITNESS_OAUTH_BRIDGE_SCRIPT + HEALTH_BRIDGE_SCRIPT + CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT + (Platform.OS === 'ios' ? WEBVIEW_MODAL_SCRIPT : '')}
+      injectedJavaScriptBeforeContentLoaded={nativeGym.injectedScript + FITNESS_OAUTH_BRIDGE_SCRIPT + HEALTH_BRIDGE_SCRIPT + CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT + (Platform.OS === 'ios' ? WEBVIEW_MODAL_SCRIPT : '')}
       onMessage={onWebViewMessage}
+      onLoadStart={({ nativeEvent }) => { nativeGym.onNavigation(nativeEvent.url); healthDocument.current = {url: nativeEvent.url || '', version: healthDocument.current.version + 1}; }}
       onLoadEnd={handleLoadEnd}
       onError={(syntheticEvent) => {
         const { nativeEvent } = syntheticEvent;
@@ -473,6 +560,7 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
         markReady();
       }}
       onHttpError={(syntheticEvent) => {
+        if (notifications.onHttpError(syntheticEvent)) return;
         console.warn('[WebView] HTTP error', syntheticEvent?.nativeEvent?.statusCode);
       }}
       scrollEnabled={true}
@@ -498,6 +586,7 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
         return true;
       }}
       onNavigationStateChange={(navState) => {
+        healthDocument.current.url = navState.url || healthDocument.current.url;
         notifications.onNavigation(navState.url);
         setCanGoBack(navState.canGoBack);
 
@@ -519,6 +608,7 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       domStorageEnabled
       allowsBackForwardNavigationGestures
     />
+    </NativeGymShell>
   </View>
 );
 }

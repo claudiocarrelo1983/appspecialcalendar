@@ -30,7 +30,9 @@ export function calendarEventFromMessage(message) {
   }
   const startDate = new Date(event.startDate);
   const endDate = new Date(event.endDate);
-  if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) || endDate <= startDate) {
+  if (!Number.isFinite(startDate.getTime()) || !Number.isFinite(endDate.getTime()) || endDate <= startDate
+      || startDate.toISOString().replace('.000Z', 'Z') !== event.startDate
+      || endDate.toISOString().replace('.000Z', 'Z') !== event.endDate) {
     throw new Error('Invalid calendar duration');
   }
   for (const field of ['location', 'notes', 'url']) {

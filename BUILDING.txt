@@ -1,0 +1,11 @@
+FTX Team (com.ftxteam.app)
+Website: https://c20260531125358085.specialcalendar.com
+
+This folder defaults to this company for local development and EAS builds.
+npm start
+npx eas-cli@latest build --platform android --profile preview
+npx eas-cli@latest build --platform android --profile production
+npx eas-cli@latest build --platform ios --profile production --auto-submit-with-profile production
+
+The explicit demo/ftx profiles remain available for compatibility.
+After changing shared functionality, apply the same source changes to the other folder.

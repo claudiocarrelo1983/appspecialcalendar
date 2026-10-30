@@ -1,0 +1,26 @@
+{
+  "c20261027151705426.specialcalendar.com": {
+    "appId": "com.demoteam.app",
+    "projectId": "2c8e7c35-68dc-40c6-b7ea-461f61de6c93",
+    "pagecode": "c20261027151705426",
+    "title": "Demo Special Calendar",
+    "icon": "./assets/logo/specialcalendar-icon.png",
+    "splash": "./assets/logo/specialcalendar-splash.png",
+    "androidGoogleServicesFile": "./google-services.json",
+    "iosGoogleServicesFile": "./GoogleService-Info.plist",
+    "accessTokenEnv": "EXPO_ACCESS_TOKEN_FTX",
+    "brandColor": "#008fbd"
+  },
+  "c20260531125358085.specialcalendar.com": {
+    "appId": "com.ftxteam.app",
+    "projectId": "2c8e7c35-68dc-40c6-b7ea-461f61de6c93",
+    "pagecode": "c20260531125358085",
+    "title": "FTX Team",
+    "icon": "./assets/logo/ftx-icon.png",
+    "splash": "./assets/logo/ftx-splash.png",
+    "androidGoogleServicesFile": "./google-services.json",
+    "iosGoogleServicesFile": "./firebase/ftx/GoogleService-Info.plist",
+    "accessTokenEnv": "EXPO_ACCESS_TOKEN_FTX",
+    "brandColor": "#198754"
+  }
+}

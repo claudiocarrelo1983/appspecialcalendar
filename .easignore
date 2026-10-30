@@ -62,3 +62,5 @@ assets/adi-registration.properties
 
 # Include Firebase iOS configuration in local EAS uploads.
 !GoogleService-Info.plist
+!firebase/**/GoogleService-Info.plist
+!firebase/**/google-services.json

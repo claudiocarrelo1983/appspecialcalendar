@@ -14,31 +14,58 @@
       "supportsTablet": true,
       "requireFullScreen": true,
       "bundleIdentifier": "com.ftxteam.app",
-      "googleServicesFile": "./GoogleService-Info.plist",
+      "googleServicesFile": "./firebase/ftx/GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "A FTX Team utiliza a câmara para tirar uma fotografia e atualizar a sua foto de perfil.",
         "NSPhotoLibraryUsageDescription": "A FTX Team permite escolher uma fotografia da sua biblioteca para atualizar a sua foto de perfil.",
         "NSLocationWhenInUseUsageDescription": "A FTX Team utiliza a sua localização enquanto usa a aplicação para confirmar o local dos registos de presença."
-      }
+      },
+      "associatedDomains": [
+        "applinks:c20260531125358085.specialcalendar.com"
+      ]
     },
     "android": {
       "package": "com.ftxteam.app",
       "googleServicesFile": "./google-services.json",
       "blockedPermissions": [
         "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR",
+        "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR"
       ],
       "permissions": [
+        "android.permission.CAMERA",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.POST_NOTIFICATIONS"
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
+      ],
+      "intentFilters": [
+        {
+          "autoVerify": true,
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "https",
+              "host": "c20260531125358085.specialcalendar.com",
+              "pathPrefix": "/dashboard-gym"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "owner": "carrelo1983",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.2-com.ftxteam.app-health1-calendar1-oauth1-nativeui2-timeralerts2",
     "plugins": [
       "expo-web-browser",
       [
@@ -55,7 +82,10 @@
       [
         "expo-notifications",
         {
-          "defaultChannel": "default"
+          "defaultChannel": "class-reminders",
+          "sounds": [
+            "./src/assets/audio/gym_timer_finished.wav"
+          ]
         }
       ],
       "expo-status-bar",
@@ -78,6 +108,10 @@
       "eas": {
         "projectId": "2c8e7c35-68dc-40c6-b7ea-461f61de6c93"
       }
-    }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2c8e7c35-68dc-40c6-b7ea-461f61de6c93"
+    },
+    "scheme": "specialcalendar-c20260531125358085"
   }
 }
