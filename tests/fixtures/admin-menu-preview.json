@@ -1,0 +1,545 @@
+{
+  "source": "frontend/web/json/other/special-gym/gym-all.json + CompanyNotificationService::sidebarMenu",
+  "scope": "Full configuration sample for local visual QA only; not a signed-in account permission grant.",
+  "items": [
+    {
+      "id": "t-dashboard-gym",
+      "label": "Dashboard",
+      "labels": {
+        "pt": "Painel",
+        "en": "Dashboard"
+      },
+      "url": "../dashboard-gym",
+      "children": []
+    },
+    {
+      "id": "t-members",
+      "label": "Members",
+      "labels": {
+        "pt": "Sócios",
+        "en": "Members"
+      },
+      "url": null,
+      "children": [
+        {
+          "id": "t-members-list",
+          "label": "List",
+          "labels": {
+            "pt": "Lista",
+            "en": "List"
+          },
+          "url": "clients-list/",
+          "children": []
+        },
+        {
+          "id": "t-members-memberships",
+          "label": "Memberships",
+          "labels": {
+            "pt": "Adesões",
+            "en": "Memberships"
+          },
+          "url": "memberships/",
+          "children": []
+        },
+        {
+          "id": "t-members-attendance",
+          "label": "Attendance",
+          "labels": {
+            "pt": "Presenças",
+            "en": "Attendance"
+          },
+          "url": "gym-attendance/",
+          "children": []
+        },
+        {
+          "id": "t-members-waivers",
+          "label": "Waivers",
+          "labels": {
+            "pt": "Termos de responsabilidade",
+            "en": "Waivers"
+          },
+          "url": "waivers/",
+          "children": []
+        },
+        {
+          "id": "t-members-debts",
+          "label": "Debts",
+          "labels": {
+            "pt": "Dívidas",
+            "en": "Debts"
+          },
+          "url": "members-debts/",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "t-group-notifications",
+      "label": "Notifications",
+      "labels": {
+        "pt": "Notificações",
+        "en": "Notifications"
+      },
+      "url": null,
+      "children": [
+        {
+          "id": "t-group-notifications-create",
+          "label": "New notification",
+          "labels": {
+            "pt": "Nova notificação",
+            "en": "New notification"
+          },
+          "url": "/group-notifications/create",
+          "children": []
+        },
+        {
+          "id": "t-group-notifications-sent",
+          "label": "Sent notifications",
+          "labels": {
+            "pt": "Notificações enviadas",
+            "en": "Sent notifications"
+          },
+          "url": "/group-notifications/sent",
+          "children": []
+        },
+        {
+          "id": "t-group-notifications-index",
+          "label": "Inbox",
+          "labels": {
+            "pt": "Caixa de entrada",
+            "en": "Inbox"
+          },
+          "url": "/group-notifications/index",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "t-classes",
+      "label": "Classes",
+      "labels": {
+        "pt": "Aulas",
+        "en": "Classes"
+      },
+      "url": null,
+      "children": [
+        {
+          "id": "t-classes-schedule",
+          "label": "Schedule",
+          "labels": {
+            "pt": "Horário",
+            "en": "Schedule"
+          },
+          "url": "classes-schedule/",
+          "children": []
+        },
+        {
+          "id": "t-classes-gym-classes",
+          "label": "Class list",
+          "labels": {
+            "pt": "Lista de aulas",
+            "en": "Class list"
+          },
+          "url": "gym-classes/",
+          "children": []
+        },
+        {
+          "id": "t-members-personal-classes",
+          "label": "Packages",
+          "labels": {
+            "pt": "Pacotes",
+            "en": "Packages"
+          },
+          "url": "personal-classes/",
+          "children": []
+        },
+        {
+          "id": "t-configurations-company-locations",
+          "label": "Locations",
+          "labels": {
+            "pt": "Localizações",
+            "en": "Locations"
+          },
+          "url": "company-locations/",
+          "children": []
+        },
+        {
+          "id": "t-classes-gym-classes-room",
+          "label": "Rooms",
+          "labels": {
+            "pt": "Salas",
+            "en": "Rooms"
+          },
+          "url": "gym-classes-rooms/",
+          "children": []
+        },
+        {
+          "id": "t-classes-gym-class-categories",
+          "label": "Categories",
+          "labels": {
+            "pt": "Categorias",
+            "en": "Categories"
+          },
+          "url": "gym-classes-categories/",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "t-coaches",
+      "label": "Team",
+      "labels": {
+        "pt": "Equipa",
+        "en": "Team"
+      },
+      "url": null,
+      "children": [
+        {
+          "id": "t-coaches-list",
+          "label": "Coaches",
+          "labels": {
+            "pt": "Treinadores",
+            "en": "Coaches"
+          },
+          "url": "team-members/",
+          "children": []
+        },
+        {
+          "id": "t-coaches-tasks",
+          "label": "Tasks",
+          "labels": {
+            "pt": "Tarefas",
+            "en": "Tasks"
+          },
+          "url": "task-operations/",
+          "children": []
+        },
+        {
+          "id": "t-coaches-vacations",
+          "label": "Leave",
+          "labels": {
+            "pt": "Ausências",
+            "en": "Leave"
+          },
+          "url": "vacations/",
+          "children": []
+        },
+        {
+          "id": "t-coaches-permissions",
+          "label": "Permissions",
+          "labels": {
+            "pt": "Permissões",
+            "en": "Permissions"
+          },
+          "url": "permissions/",
+          "children": []
+        },
+        {
+          "id": "t-coaches-clock",
+          "label": "Clock In / Out",
+          "labels": {
+            "pt": "Entrada / Saída",
+            "en": "Clock In / Out"
+          },
+          "url": "/hotel-clock/index",
+          "children": []
+        },
+        {
+          "id": "t-coaches-shift-planner",
+          "label": "Shift Planner",
+          "labels": {
+            "pt": "Planeamento de turnos",
+            "en": "Shift Planner"
+          },
+          "url": "/shift-planner/index",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "t-performance",
+      "label": "Progress",
+      "labels": {
+        "pt": "Progresso",
+        "en": "Progress"
+      },
+      "url": null,
+      "children": [
+        {
+          "id": "t-performance-dashboard",
+          "label": "Overview",
+          "labels": {
+            "pt": "Resumo",
+            "en": "Overview"
+          },
+          "url": "performance-dashboard/",
+          "children": []
+        },
+        {
+          "id": "t-performance-assessments",
+          "label": "Assessments",
+          "labels": {
+            "pt": "Avaliações",
+            "en": "Assessments"
+          },
+          "url": "fitness-assessments/",
+          "children": []
+        },
+        {
+          "id": "t-performance-body",
+          "label": "Measurements",
+          "labels": {
+            "pt": "Medições",
+            "en": "Measurements"
+          },
+          "url": "body-measurements/",
+          "children": []
+        },
+        {
+          "id": "t-performance-goals",
+          "label": "Goals",
+          "labels": {
+            "pt": "Objetivos",
+            "en": "Goals"
+          },
+          "url": "fitness-goals/",
+          "children": []
+        },
+        {
+          "id": "t-performance-records",
+          "label": "Records",
+          "labels": {
+            "pt": "Recordes",
+            "en": "Records"
+          },
+          "url": "personal-records/",
+          "children": []
+        },
+        {
+          "id": "t-performance-progress",
+          "label": "Photos",
+          "labels": {
+            "pt": "Fotografias",
+            "en": "Photos"
+          },
+          "url": "progress-photos/",
+          "children": []
+        },
+        {
+          "id": "t-performance-messages",
+          "label": "Messages",
+          "labels": {
+            "pt": "Mensagens",
+            "en": "Messages"
+          },
+          "url": "/performance-messages",
+          "children": []
+        },
+        {
+          "id": "t-performance-reports",
+          "label": "Reports",
+          "labels": {
+            "pt": "Relatórios",
+            "en": "Reports"
+          },
+          "url": "performance-reports/",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "t-events",
+      "label": "Events",
+      "labels": {
+        "pt": "Eventos",
+        "en": "Events"
+      },
+      "url": null,
+      "children": [
+        {
+          "id": "t-events-list",
+          "label": "List",
+          "labels": {
+            "pt": "Lista",
+            "en": "List"
+          },
+          "url": "events-list/",
+          "children": []
+        },
+        {
+          "id": "t-events-clients",
+          "label": "Participants",
+          "labels": {
+            "pt": "Participantes",
+            "en": "Participants"
+          },
+          "url": "event-clients/",
+          "children": []
+        },
+        {
+          "id": "t-events-challenges",
+          "label": "Challenges",
+          "labels": {
+            "pt": "Desafios",
+            "en": "Challenges"
+          },
+          "url": "challenges/",
+          "children": []
+        },
+        {
+          "id": "t-events-competitions",
+          "label": "Competitions",
+          "labels": {
+            "pt": "Competições",
+            "en": "Competitions"
+          },
+          "url": "competitions/",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "t-reports",
+      "label": "Reports",
+      "labels": {
+        "pt": "Relatórios",
+        "en": "Reports"
+      },
+      "url": null,
+      "children": [
+        {
+          "id": "t-reports-revenue",
+          "label": "Revenue",
+          "labels": {
+            "pt": "Receitas",
+            "en": "Revenue"
+          },
+          "url": "revenue-reports/",
+          "children": []
+        },
+        {
+          "id": "t-reports-memberships",
+          "label": "Memberships",
+          "labels": {
+            "pt": "Adesões",
+            "en": "Memberships"
+          },
+          "url": "membership-reports/",
+          "children": []
+        },
+        {
+          "id": "t-reports-attendance",
+          "label": "Attendance",
+          "labels": {
+            "pt": "Presenças",
+            "en": "Attendance"
+          },
+          "url": "attendance-reports/",
+          "children": []
+        },
+        {
+          "id": "t-reports-coaches",
+          "label": "Coaches",
+          "labels": {
+            "pt": "Treinadores",
+            "en": "Coaches"
+          },
+          "url": "coach-performance/",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "t-health-tools",
+      "label": "Health tools",
+      "labels": {
+        "pt": "Ferramentas de saúde",
+        "en": "Health tools"
+      },
+      "url": null,
+      "children": [
+        {
+          "id": "t-health-tools-timer",
+          "label": "Workout timer",
+          "labels": {
+            "pt": "Temporizador de treino",
+            "en": "Workout timer"
+          },
+          "url": "/workout-timer",
+          "children": []
+        },
+        {
+          "id": "t-health-tools-integrations",
+          "label": "Gym sessions",
+          "labels": {
+            "pt": "Sessões de ginásio",
+            "en": "Gym sessions"
+          },
+          "url": "/gym-sessions",
+          "children": []
+        }
+      ]
+    },
+    {
+      "id": "t-configurations",
+      "label": "Settings",
+      "labels": {
+        "pt": "Definições",
+        "en": "Settings"
+      },
+      "url": null,
+      "children": [
+        {
+          "id": "t-configurations-company-page-appearance",
+          "label": "Gym",
+          "labels": {
+            "pt": "Ginásio",
+            "en": "Gym"
+          },
+          "url": "company/",
+          "children": []
+        },
+        {
+          "id": "t-configurations-payments-setup",
+          "label": "Payments",
+          "labels": {
+            "pt": "Pagamentos",
+            "en": "Payments"
+          },
+          "url": "payments-setup/index",
+          "children": []
+        },
+        {
+          "id": "t-configurations-my-plan",
+          "label": "Plan",
+          "labels": {
+            "pt": "Plano",
+            "en": "Plan"
+          },
+          "url": "my-plan/",
+          "children": []
+        },
+        {
+          "id": "t-configurations-profile",
+          "label": "Profile",
+          "labels": {
+            "pt": "Perfil",
+            "en": "Profile"
+          },
+          "url": "profile/",
+          "children": []
+        },
+        {
+          "id": "t-configurations-legal-documents",
+          "label": "Legal documents",
+          "labels": {
+            "pt": "Documentos legais",
+            "en": "Legal documents"
+          },
+          "url": "legal-documents/index",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

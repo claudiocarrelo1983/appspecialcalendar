@@ -4,8 +4,21 @@ const {test}=require('node:test');
 const babel=require('@babel/core');
 function load(name,mocks){
  const code=babel.transformSync(fs.readFileSync(path.join(__dirname,'../src/utils',name),'utf8'),{babelrc:false,configFile:false,plugins:['@babel/plugin-transform-modules-commonjs']}).code;
- const exports={};vm.runInNewContext(code,{exports,URL,console:{warn(){}},require(name){assert.ok(mocks[name],`Unexpected dependency: ${name}`);return mocks[name];}});return exports;
+ const exports={};vm.runInNewContext(code,{exports,URL,URLSearchParams,console:{warn(){}},require(name){if(name==='./classLinks')return load('classLinks.js',{});if(name==='./pushNotificationNavigation')return load('pushNotificationNavigation.js',{});assert.ok(mocks[name],`Unexpected dependency: ${name}`);return mocks[name];}});return exports;
 }
+
+test('class invitation push opens the exact booking class without a generic notification modal',async()=>{
+ const effects=[],opened=[],scripts=[];let tapped;
+ const notifications={getPermissionsAsync:async()=>({granted:false,canAskAgain:false,status:'denied'}),addNotificationResponseReceivedListener:fn=>{tapped=fn;return {remove(){}};},addPushTokenListener:()=>({remove(){}}),getLastNotificationResponseAsync:async()=>null,clearLastNotificationResponseAsync:async()=>{}};
+ const module=load('usePushNotifications.js',{react:{useCallback:fn=>fn,useEffect:fn=>effects.push(fn),useRef:current=>({current})},'react-native':{Platform:{OS:'ios'},AppState:{addEventListener:()=>({remove(){}})}},'expo-constants':{expoConfig:{},easConfig:{}},'./notificationModule':{getNotifications:()=>notifications},'./pushInstallation':{getPushInstallation:async()=>null,pushRegistrationScript:()=>''}});
+ const base='https://c20260531125358085.specialcalendar.com';
+ const hook=module.default({current:{injectJavaScript:script=>scripts.push(script)}},base,url=>opened.push(url));effects.forEach(fn=>fn());await new Promise(setImmediate);
+ const url='/dashboard-gym-client/index?company_code=ftx&date=2026-12-30&schedule_id=7';
+ tapped({actionIdentifier:'default',notification:{request:{identifier:'invite-1',content:{title:'Invitation',body:'Join me',data:{type:'class-invitation',url}}}}});
+ assert.equal(new URL(opened[0]).searchParams.get('schedule_id'),'7');
+ hook.onLoadEnd({nativeEvent:{url:opened[0]}});
+ assert.ok(!scripts.some(script=>script.includes('__specialCalendarOpenedNotification=')));
+});
 test('installation identity is cryptographically generated once and stored only in native secure storage',async()=>{
  let saved=null,writes=0,randomCalls=0;
  const module=load('pushInstallation.js',{'expo-secure-store':{getItemAsync:async()=>saved,setItemAsync:async(key,value)=>{saved=value;writes++;}},'expo-crypto':{getRandomBytesAsync:async size=>{randomCalls++;return new Uint8Array(size).fill(randomCalls);}}});

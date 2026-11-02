@@ -1,7 +1,19 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { Animated, StyleSheet } from 'react-native';
+import { Animated, StyleSheet, Text } from 'react-native';
 import Constants from 'expo-constants';
 import { companySplashImage } from '../utils/companyBranding';
+
+export function SplashArtwork({ scale = 1 }) {
+  return <>
+    <Animated.View style={styles.logoFrame}>
+      <Animated.Image source={companySplashImage()}
+        style={[styles.logo, { transform: [{ scale }] }]}
+        resizeMode="contain"
+        accessibilityLabel={`${Constants.expoConfig?.name || 'Club'} logo`} />
+    </Animated.View>
+    <Text style={styles.credit}>by Special Calendar</Text>
+  </>;
+}
 
 export default function AnimatedSplashScreen({
   onFinish,
@@ -15,6 +27,8 @@ export default function AnimatedSplashScreen({
   const finishedRef = useRef(false);
   const minTimePassedRef = useRef(false);
   const layoutReadyFiredRef = useRef(false);
+  const readyRef = useRef(isReady), finishRef = useRef(onFinish);
+  readyRef.current = isReady; finishRef.current = onFinish;
 
   const triggerFadeOut = useCallback(() => {
     if (finishedRef.current) return;
@@ -23,37 +37,37 @@ export default function AnimatedSplashScreen({
     Animated.parallel([
       Animated.timing(containerOpacity, {
         toValue: 0,
-        duration: 350,
+        duration: 160,
         useNativeDriver: true,
       }),
       Animated.timing(scale, {
         toValue: 1.05,
-        duration: 350,
+        duration: 160,
         useNativeDriver: true,
       }),
     ]).start(() => {
-      if (onFinish) onFinish();
+      if (finishRef.current) finishRef.current();
     });
-  }, [containerOpacity, scale, onFinish]);
+  }, [containerOpacity, scale]);
 
   useEffect(() => {
     const minTimer = setTimeout(() => {
       minTimePassedRef.current = true;
-      if (isReady) {
+      if (readyRef.current) {
         triggerFadeOut();
       }
-    }, 700);
+    }, 150);
 
     // Keep splash up longer so a stuck site loading-overlay never flashes white.
     const fallbackTimer = setTimeout(() => {
       triggerFadeOut();
-    }, 12000);
+    }, 6000);
 
     return () => {
       clearTimeout(minTimer);
       clearTimeout(fallbackTimer);
     };
-  }, [isReady, triggerFadeOut]);
+  }, [triggerFadeOut]);
 
   useEffect(() => {
     if (isReady && minTimePassedRef.current) {
@@ -71,14 +85,7 @@ export default function AnimatedSplashScreen({
         if (onLayoutReady) onLayoutReady();
       }}
     >
-      <Animated.View style={styles.logoFrame}>
-      <Animated.Image
-        source={companySplashImage()}
-        style={[styles.logo, { transform: [{ scale }] }]}
-        resizeMode="contain"
-        accessibilityLabel={`${Constants.expoConfig?.name || 'Special Calendar'} logo`}
-      />
-      </Animated.View>
+      <SplashArtwork scale={scale} />
     </Animated.View>
   );
 }
@@ -106,5 +113,16 @@ const styles = StyleSheet.create({
   logo: {
     width: 200,
     height: 200,
+  },
+  credit: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: 138,
+    left: 24,
+    right: 24,
+    textAlign: 'center',
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#667085',
   },
 });

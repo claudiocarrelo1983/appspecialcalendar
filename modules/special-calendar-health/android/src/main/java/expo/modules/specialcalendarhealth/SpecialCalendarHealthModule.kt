@@ -1,6 +1,11 @@
 package expo.modules.specialcalendarhealth
 
 import android.os.Build
+import android.app.AlarmManager
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
@@ -31,6 +36,20 @@ class SpecialCalendarHealthModule : Module() {
 
   override fun definition() = ModuleDefinition {
     Name("SpecialCalendarHealth")
+    AsyncFunction("timerAlarmAllowed") {
+      val context = requireNotNull(appContext.reactContext)
+      Build.VERSION.SDK_INT < 31 || (context.getSystemService(Context.ALARM_SERVICE) as AlarmManager).canScheduleExactAlarms()
+    }
+    AsyncFunction("openTimerAlarmSettings") { promise: Promise ->
+      val activity = appContext.currentActivity
+      if (activity == null) promise.reject("native_unavailable", "native_unavailable", null)
+      else activity.runOnUiThread {
+        try {
+          if (Build.VERSION.SDK_INT >= 31) activity.startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + activity.packageName)))
+          promise.resolve(true)
+        } catch (error: Exception) { promise.reject("alarm_settings", "Could not open alarm settings", error) }
+      }
+    }
     AsyncFunction("status") { -> mapOf("available" to available(), "reason" to if (Build.VERSION.SDK_INT < 28) "android_version" else "health_connect_unavailable") }
     AsyncFunction("connect") { promise: Promise ->
       val activity = appContext.currentActivity

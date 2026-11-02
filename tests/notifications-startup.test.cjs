@@ -18,6 +18,7 @@ function load(file, mocks) {
     URL,
     console: { warn() {} },
     require(name) {
+      if(name==='./classLinks')return load('classLinks.js',{});
       assert.ok(name in mocks, `Unexpected import: ${name}`);
       return mocks[name]();
     },
@@ -70,6 +71,7 @@ function hookWith(notifications, device = () => ({ isDevice: true })) {
     'react-native': () => ({ Platform: { OS: 'ios' }, AppState: {} }),
     'expo-constants': () => ({ easConfig: { projectId: 'test-project' } }),
     './notificationModule': () => ({ getNotifications: () => notifications }),
+    './pushNotificationNavigation': () => load('pushNotificationNavigation.js', {}),
     './pushInstallation': () => ({ getPushInstallation: async () => ({installationId:'a'.repeat(32),installationSecret:'b'.repeat(64)}), pushRegistrationScript: () => 'true;' }),
     'expo-device': device,
   });

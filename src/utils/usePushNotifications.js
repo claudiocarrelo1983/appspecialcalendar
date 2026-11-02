@@ -4,6 +4,7 @@ import Constants from 'expo-constants';
 import { getNotifications } from './notificationModule';
 import { getPushInstallation, pushRegistrationScript } from './pushInstallation';
 import { notificationTarget, pushRecovery } from './pushNotificationNavigation';
+import { classLinkTarget } from './classLinks';
 
 export function pushRegistrationState(message) {
   if (message.success === true && message.result?.success === true) {
@@ -148,10 +149,12 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
       if (url) {
         const content = response.notification.request.content, id = `${tappedAt}-${++tapSequence.current}`;
         const target = new URL(url); target.searchParams.set('_push_open', id);
-        openedNotification.current = {id,
+        const invitation=content.data?.type==='class-invitation'&&!!classLinkTarget(url,startUrl)&&new URL(url).searchParams.has('schedule_id');
+        const opened = {id,
           title: typeof content.title === 'string' ? content.title.slice(0,200) : '',
           body: typeof content.body === 'string' ? content.body.slice(0,2000) : ''};
-        pendingOpen.current = {...openedNotification.current, at:tappedAt, url:target.href};
+        openedNotification.current=invitation?null:opened;
+        pendingOpen.current = {...opened, at:tappedAt, url:target.href};
         onOpenUrl(target.href);
       }
       Notifications.clearLastNotificationResponseAsync().catch(() => {});

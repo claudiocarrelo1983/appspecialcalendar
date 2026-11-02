@@ -1,6 +1,10 @@
 const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const root=path.resolve(__dirname,'..'),selectDomain=require('../config/select-domain.cjs');
 const files=['index.js','App.js','src/screens/WebViewScreen.js','src/screens/NativeGymShell.js',
+  'src/screens/NativeAdminShell.js','src/utils/nativeAdminCore.js','src/utils/useNativeAdmin.js','src/utils/webViewPosition.js',
+  'src/screens/NativeAdminFrame.js','src/screens/NativeAdminScanner.js','src/utils/nativeAdminPages.js','src/utils/useNativeAdminPages.js',
+  'src/screens/NativeAdminHeader.js',
+  'src/utils/nativeAdminNavigation.js',
   'src/screens/NativeWorkoutTimer.js','src/screens/NativeNotifications.js','src/screens/NativeBirthdays.js',
   'src/utils/useNativeGym.js','src/utils/usePushNotifications.js','src/utils/nativeGymCore.js',
   'src/utils/companyAppConfig.js','src/utils/nativeCompanyBranding.js','src/assets/gym-ui-theme.json'];

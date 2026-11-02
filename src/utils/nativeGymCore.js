@@ -1,22 +1,28 @@
 export const NATIVE_GYM_MESSAGE = 'sc.nativeGym.response';
+export const NATIVE_AUTH_READY = 'sc.nativeGym.authReady';
+export function authPageReadyScript(startUrl){
+  return '(function(origin){if(location.origin!==origin||!/^\\/(?:site\\/)?login\\/?$/.test(location.pathname)&&location.pathname!=="/")return;function ready(){if(!document.body||!document.body.children.length)return;window.ReactNativeWebView?.postMessage(JSON.stringify({type:"sc.nativeGym.authReady",documentUrl:location.href}));}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",ready,{once:true});else ready();window.addEventListener("pageshow",ready);})('+JSON.stringify(new URL(startUrl).origin)+');true;';
+}
 export const WEB_ROUTES = {
   bookings: '/dashboard-gym-client', settings: '/client-settings',
   profile: '/profile', performance: '/performance-dashboard-client',
   packages: '/personal-classes/client-index', notifications: '/group-notifications',
 };
-export function nativeShellStyleScript(enabled,startUrl,color) {
+export function nativeShellStyleScript(enabled,startUrl,color,holdClient=false) {
   const primary=/^#[a-f0-9]{6}$/i.test(color||'')?color:'#0d6efd';
   const css=[
+    'html.sc-native-client-startup{background:#fff!important}html.sc-native-client-startup body{visibility:hidden!important}',
     'html.sc-native-shell,html.sc-native-shell body{background:#fff!important}',
     '.sc-native-shell #page-topbar,.sc-native-shell .vertical-menu,.sc-native-shell .mobile-bottom-nav,.sc-native-shell .footer,.sc-native-shell .footer-space,.sc-native-shell .footer-space-mobile{display:none!important}',
     '.sc-native-shell .main-content{margin-left:0!important;margin-top:0!important}',
     '.sc-native-shell .main-content>.page-content{padding-top:0!important;margin-top:0!important;min-height:0!important}',
     '.sc-native-shell .gym-menu-content{padding:16px 16px 24px!important}',
     '.sc-native-shell .gym-client-portal{padding-bottom:0!important}',
+    '.sc-native-shell body{padding-bottom:0!important}.sc-native-shell .gym-app-layout{padding:16px!important}',
     '.sc-native-shell{--sc-primary:'+primary+';--sc-primary-rgb:'+ [1,3,5].map(i=>parseInt(primary.slice(i,i+2),16)).join(',')+'}',
   ].join('');
-  return '(function(c){if(location.origin!==c.origin)return;function apply(){var root=document.documentElement;if(!root)return;root.classList.toggle("sc-native-shell",c.enabled);var style=document.getElementById("sc-native-shell-style");if(!style){style=document.createElement("style");style.id="sc-native-shell-style";(document.head||root).appendChild(style);}style.textContent=c.css;}apply();document.addEventListener("DOMContentLoaded",apply,{once:true});})('
-    +JSON.stringify({enabled,origin:new URL(startUrl).origin,css})+');true;';
+  return '(function(c){if(location.origin!==c.origin)return;window.__scNativeShellConfig=c;if(!c.holdClient)window.__scNativeClientResolved=true;function apply(){c=window.__scNativeShellConfig;var root=document.documentElement;if(!root)return;root.classList.toggle("sc-native-client-startup",!!c.holdClient&&!c.enabled&&!window.__scNativeClientResolved&&/^\\/dashboard-gym-client(?:\\/index)?\\/?$/.test(location.pathname));root.classList.toggle("sc-native-shell",c.enabled);var style=document.getElementById("sc-native-shell-style");if(!style){style=document.createElement("style");style.id="sc-native-shell-style";(document.head||root).appendChild(style);}style.textContent=c.css;}apply();document.addEventListener("DOMContentLoaded",apply,{once:true});})('
+    +JSON.stringify({enabled,holdClient,origin:new URL(startUrl).origin,css})+');true;';
 }
 const API_ROUTES = {
   context: '/native-gym', sessions: '/native-gym/sessions',
@@ -43,6 +49,7 @@ export function sameGymOrigin(url, startUrl) {
  * Native views receive DTOs; credentials and CSRF tokens never cross the bridge. */
 export function gymRequestScript(id, action, params, startUrl) {
   if (!API_ROUTES[action]) throw new Error('Unsupported native gym action');
+  if(action==='logout')return '('+LOGOUT_SOURCE+')('+JSON.stringify({id,path:'/site/logout',post:true,origin:new URL(startUrl).origin})+');true;';
   const body = {};
   for (const key of ['id', 'from', 'to', 'page', 'checked', 'language']) {
     if (params?.[key] !== undefined) body[key] = String(params[key]);
@@ -65,6 +72,60 @@ export function gymRequestScript(id, action, params, startUrl) {
     + NATIVE_GYM_MESSAGE + '",id:c.id,status:0}));}).finally(function(){clearTimeout(timeout);});'
     + '})(' + config + ');true;';
 }
+
+// Use the same protected POST as the website menu, inside WKWebView's cookie jar.
+const LOGOUT_SOURCE=String.raw`function(c){
+  if(location.origin!==c.origin||!window.ReactNativeWebView)return;
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+  const send=value=>window.ReactNativeWebView.postMessage(JSON.stringify({type:'sc.nativeGym.response',id:c.id,...value}));
+  async function confirmSignedOut(){
+    let response=await fetch('/native-gym',{credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{Accept:'application/json'}});
+    if(response.status===404)response=await fetch('/api/v1/native-gym',{credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{Accept:'application/json'}});
+    if(new URL(response.url||'/native-gym',location.href).origin!==c.origin){send({status:0,reason:'invalid_response'});return;}
+    let result;try{result=await response.json();}catch{send({status:response.status,reason:'invalid_response'});return;}
+    if(response.status===401&&result.success===false)send({status:200,result:{success:true,data:{loggedOut:true}}});
+    else send({status:response.ok?409:response.status,result:{success:false,message:'Could not confirm sign-out. Please try again.'},reason:'still_authenticated'});
+  }
+  async function csrf(){
+    const response=await fetch('/api/v1/csrf',{credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{Accept:'application/json'}});
+    if(!response.ok)throw Error('csrf');
+    const result=await response.json();if(!result.success||!result.data?.token)throw Error('csrf');
+    return {param:result.data.param||'_csrf',token:result.data.token};
+  }
+  async function run(){
+    let token=document.querySelector('meta[name="csrf-token"]')?.content;
+    let security=token?{token,param:document.querySelector('meta[name="csrf-param"]')?.content||'_csrf'}:await csrf();
+    for(let attempt=0;attempt<2;attempt++){
+      const response=await fetch(c.path,{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,
+        headers:{Accept:'text/html','X-CSRF-Token':security.token,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({[security.param]:security.token,logout_context:'public'}).toString()});
+      const final=new URL(response.url||c.path,location.href);
+      if(final.origin!==c.origin){send({status:0,reason:'invalid_response'});return;}
+      if(response.status===400&&attempt===0){security=await csrf();continue;}
+      if(response.status===404){
+        // A legacy post-logout redirect can fail after the cookie was already cleared.
+        for(const path of ['/native-gym/logout','/api/v1/native-gym/logout']){
+          const fallback=await fetch(path,{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,
+            headers:{Accept:'application/json','X-CSRF-Token':security.token,'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({[security.param]:security.token}).toString()});
+          if(new URL(fallback.url||path,location.href).origin!==c.origin){send({status:0,reason:'invalid_response'});return;}
+          if(fallback.status===404)continue;
+          let result;try{result=await fallback.json();}catch{send({status:fallback.status,reason:'invalid_response'});return;}
+          if((fallback.ok&&result.success===true&&result.data?.loggedOut===true)||(fallback.status===401&&result.success===false)){
+            await confirmSignedOut();return;
+          }
+          send({status:fallback.status,result:{success:false},reason:'invalid_response'});return;
+        }
+      }
+      const body=await response.text();
+      const login=/^\/(?:site\/)?login\/?$/.test(final.pathname);
+      const rootLogin=final.pathname==='/'&&!!new DOMParser().parseFromString(body,'text/html').querySelector('input[type="password"]');
+      if(response.ok&&response.redirected&&(login||rootLogin)){
+        await confirmSignedOut();return;
+      }
+      send({status:response.status,result:{success:false},reason:'invalid_response'});return;
+    }
+  }
+  run().catch(()=>send({status:0,reason:'connection'})).finally(()=>clearTimeout(timer));
+}`;
 
 export function timerElapsed(timer, now = Date.now()) {
   return Math.max(0, Math.min(86400, Number(timer.elapsed || 0)

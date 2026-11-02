@@ -31,7 +31,18 @@ try{
     for(const key of ['bundleIdentifier','googleServicesFile','associatedDomains'])delete full.ios[key];
     for(const key of ['NSCameraUsageDescription','NSPhotoLibraryUsageDescription','NSLocationWhenInUseUsageDescription'])delete full.ios.infoPlist[key];
     for(const key of ['companyBrandColor','companyDomain','companyPagecode','siteUrl','fitnessOAuthReturnUrl'])delete full.extra[key];
+    const extensions=full.extra.eas.build?.experimental?.ios?.appExtensions||[];
+    assert.equal(extensions.length,1);checks++;
+    assert.equal(extensions[0].bundleIdentifier,c.ios.bundleIdentifier+'.WorkoutProgress');checks++;
+    extensions[0].bundleIdentifier='company.WorkoutProgress';
+    assert(c.runtimeVersion.endsWith('-fitness2-auth1'));checks++;
     full.plugins=full.plugins.map(plugin=>{
+      if(Array.isArray(plugin)&&plugin[0]==='expo-camera'){
+        assert(plugin[1].cameraPermission.includes(result.name));checks++;
+        assert.equal(plugin[1].recordAudioAndroid,false);checks++;
+        assert.equal(plugin[1].barcodeScannerEnabled,true);checks++;
+        delete plugin[1].cameraPermission;return plugin;
+      }
       if(!Array.isArray(plugin)||plugin[0]!=='expo-splash-screen')return plugin;
       delete plugin[1].image;if(plugin[1].dark)delete plugin[1].dark.image;return plugin;
     });

@@ -6,6 +6,38 @@ public class SpecialCalendarHealthModule: Module {
 
   public func definition() -> ModuleDefinition {
     Name("SpecialCalendarHealth")
+    AsyncFunction("updateWorkoutActivity") { (record: [String: Any], promise: Promise) in
+      if #available(iOS 16.2, *) {
+        Task {
+          do { try await WorkoutLiveActivity.update(record); promise.resolve(["updated": true]) }
+          catch { promise.reject("activity_unavailable", "Lock Screen progress is unavailable") }
+        }
+      } else { promise.resolve(["updated": false]) }
+    }
+    AsyncFunction("saveWorkout") { (record: [String: Any], promise: Promise) in
+      guard HKHealthStore.isHealthDataAvailable(), let identifier = record["id"] as? String, UUID(uuidString: identifier) != nil,
+            let seconds = record["seconds"] as? Double, seconds.isFinite, seconds >= 1, seconds <= 86400,
+            let timestamp = record["at"] as? Double, timestamp.isFinite,
+            timestamp > 946684800000, timestamp <= Date().timeIntervalSince1970 * 1000 + 300000 else {
+        promise.reject("invalid_workout", "Invalid workout"); return
+      }
+      let type = HKObjectType.workoutType()
+      self.store.requestAuthorization(toShare: [type], read: []) { requested, error in
+        guard requested, error == nil, self.store.authorizationStatus(for: type) == .sharingAuthorized else {
+          promise.reject("permission", "Allow saving workouts in Apple Health"); return
+        }
+        let end = Date(timeIntervalSince1970: timestamp / 1000)
+        let activity: HKWorkoutActivityType = (record["mode"] as? String) == "interval" ? .highIntensityIntervalTraining : .other
+        // Timer durations are user-entered workouts; do not invent calories or distance.
+        let workout = HKWorkout(activityType: activity, start: end.addingTimeInterval(-seconds), end: end,
+          duration: seconds, totalEnergyBurned: nil, totalDistance: nil,
+          metadata: [HKMetadataKeySyncIdentifier: "fitness-timer-" + identifier, HKMetadataKeySyncVersion: 1])
+        self.store.save(workout) { saved, error in
+          if saved && error == nil { promise.resolve(["saved": true]) }
+          else { promise.reject("health_save_failed", "Could not save workout") }
+        }
+      }
+    }
     AsyncFunction("status") { () -> [String: Any] in
       return ["available": HKHealthStore.isHealthDataAvailable()]
     }

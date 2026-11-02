@@ -1,5 +1,16 @@
 const CLASS_PATHS = new Set(['/dashboard-gym', '/dashboard-gym/index', '/dashboard-gym-client', '/dashboard-gym-client/index']);
 
+// A shared class must land in the recipient's booking flow, including after login.
+export function classBookingShareTarget(item, siteUrl) {
+  const target = classLinkTarget(item?.shareUrl, siteUrl);
+  if (!target) return null;
+  const url = new URL(target);
+  if (url.searchParams.get('date') !== item.date || url.searchParams.get('schedule_id') !== String(item.schedule_id)
+      || !url.searchParams.get('company_code')) return null;
+  url.pathname = '/dashboard-gym-client/index';
+  return url.href;
+}
+
 // Only accept this branded app's HTTPS class links, never an arbitrary WebView destination.
 export function classLinkTarget(value, siteUrl) {
   try {

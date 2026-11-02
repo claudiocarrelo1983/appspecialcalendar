@@ -37,6 +37,16 @@
     "gift": "ea61",
     "back": "e983",
     "profile": "eb8c",
-    "logout": "eab4"
+    "logout": "eab4",
+    "members": "ea6f",
+    "team": "eb92",
+    "progress": "eaa1",
+    "events": "eb80",
+    "reports": "e98c",
+    "health": "ea7a",
+    "company": "e9bb",
+    "editor": "ea36",
+    "refresh": "eb18",
+    "more": "ea6b"
   }
 }

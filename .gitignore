@@ -2,6 +2,7 @@
 
 # dependencies
 node_modules/
+.codex-remote-attachments/
 
 # Expo
 .expo/

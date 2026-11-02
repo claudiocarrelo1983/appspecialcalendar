@@ -1,16 +1,33 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, BackHandler, Linking, Platform, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, Linking, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import NativeGymShell from './NativeGymShell';
+import NativeAdminShell from './NativeAdminShell';
+import useNativeAdmin from '../utils/useNativeAdmin';
+import NativeAdminFrame from './NativeAdminFrame';
+import useNativeAdminPages from '../utils/useNativeAdminPages';
+import useWebViewRecovery from '../utils/useWebViewRecovery';
+import { createAccountLoginWarningHandler } from '../utils/accountLoginWarnings';
+import nativeGymTranslations from '../utils/nativeGymTranslations';
+import { positionRestoreScript } from '../utils/webViewPosition';
 import companyAppConfig from '../utils/companyAppConfig';
+import useCompanyColor from '../utils/useCompanyColor';
 import useNativeGym from '../utils/useNativeGym';
+import useWorkoutSync from '../utils/useWorkoutSync';
+import * as SecureStore from 'expo-secure-store';
+import NativeOfflineWorkouts from './NativeOfflineWorkouts';
+import useNativeAuth from '../utils/useNativeAuth';
+import NativeAuthScreen from './NativeAuthScreen';
+import {authLinkTarget} from '../utils/nativeAuthCore';
+import {isClientDashboard} from '../utils/nativeGymCore';
+import useClientBookings from '../utils/useClientBookings';
 import Constants from 'expo-constants';
 import { FITNESS_OAUTH_BRIDGE_SCRIPT, createFitnessOAuthHandler, fitnessOAuthAllowed, fitnessOAuthReplyScript } from '../utils/fitnessOAuth';
 import usePushNotifications from '../utils/usePushNotifications';
 import { WEBVIEW_SCROLL_SCRIPT } from '../utils/webViewScroll';
 import { WEBVIEW_MODAL_SCRIPT } from '../utils/webViewModals';
-import { trustedCalendarOrigin } from '../utils/calendarBridge';
+import { trustedCalendarOrigin,isUserCalendarAction } from '../utils/calendarBridge';
 import { CALENDAR_BRIDGE_SCRIPT, createCalendarMessageHandler } from '../utils/nativeCalendar';
 import { classLinkTarget } from '../utils/classLinks';
 import { HEALTH_BRIDGE_SCRIPT, handleHealthMessage, healthReplyScript, healthBridgeAllowed } from '../utils/healthBridge';
@@ -259,119 +276,6 @@ const NATIVE_FEEL_SCRIPT = `
     return true;
   })();
 `;
-const GYM_REDIRECT_SCRIPT = `
-  (function () {
-    if (window.__gymRedirectInstalled) return true;
-    window.__gymRedirectInstalled = true;
-
-    var dashboardUrl = '${GYM_DASHBOARD_URL}';
-    var dashboardPath = '/dashboard-gym';
-
-    function normalize(value) {
-      return String(value || '').trim().toLowerCase();
-    }
-
-    function readStoredValue(names) {
-      var queryParams = new URLSearchParams(window.location.search);
-      var stores = [window.sessionStorage, window.localStorage];
-
-      for (var i = 0; i < names.length; i += 1) {
-        var queryValue = queryParams.get(names[i]);
-        if (queryValue) return queryValue;
-      }
-
-      for (var j = 0; j < stores.length; j += 1) {
-        var store = stores[j];
-        if (!store) continue;
-
-        for (var k = 0; k < names.length; k += 1) {
-          var directValue = store.getItem(names[k]);
-          if (directValue) return directValue;
-        }
-
-        for (var index = 0; index < store.length; index += 1) {
-          try {
-            var itemValue = store.getItem(store.key(index));
-            var parsedValue = JSON.parse(itemValue);
-
-            for (var nameIndex = 0; nameIndex < names.length; nameIndex += 1) {
-              var nestedValue = parsedValue && parsedValue[names[nameIndex]];
-              if (nestedValue !== undefined && nestedValue !== null && nestedValue !== '') {
-                return nestedValue;
-              }
-            }
-          } catch (error) {
-            continue;
-          }
-        }
-      }
-
-      return '';
-    }
-
-    function readObjectValue(names) {
-      var sources = [
-        window.user,
-        window.currentUser,
-        window.authUser,
-        window.loggedUser,
-        window.appUser
-      ];
-
-      for (var i = 0; i < sources.length; i += 1) {
-        var source = sources[i];
-        if (!source) continue;
-
-        for (var j = 0; j < names.length; j += 1) {
-          var value = source[names[j]];
-          if (value !== undefined && value !== null && value !== '') return value;
-        }
-      }
-
-      return '';
-    }
-
-    function readCookieValue(names) {
-      var cookies = document.cookie ? document.cookie.split('; ') : [];
-
-      for (var i = 0; i < cookies.length; i += 1) {
-        var parts = cookies[i].split('=');
-        var name = decodeURIComponent(parts.shift() || '');
-
-        if (names.indexOf(name) !== -1) {
-          return decodeURIComponent(parts.join('=') || '');
-        }
-      }
-
-      return '';
-    }
-
-    function readValue(names) {
-      return (
-        readStoredValue(names) ||
-        readObjectValue(names) ||
-        readCookieValue(names)
-      );
-    }
-
-    function shouldRedirect() {
-      var level = normalize(readValue(['level', 'user_level', 'userLevel', 'role', 'user_role', 'userRole']));
-      return level === 'gym';
-    }
-
-    function redirectGym() {
-      if (window.location.pathname === dashboardPath) return;
-      if (shouldRedirect()) window.location.replace(dashboardUrl);
-    }
-
-    redirectGym();
-    window.addEventListener('load', redirectGym);
-    setTimeout(redirectGym, 500);
-    setTimeout(redirectGym, 1500);
-
-    return true;
-  })();
-`;
 
 function isLoginUrl(url) {
   if (!url) return true;
@@ -425,17 +329,43 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
   const fitnessOAuthHandler = useRef(null);
   if (!fitnessOAuthHandler.current) fitnessOAuthHandler.current = createFitnessOAuthHandler(START_URL, Constants.expoConfig?.extra?.fitnessOAuthReturnUrl);
   const healthDocument = useRef({url: START_URL, version: 0});
+  const accountWarnings=useRef(null);
+  if(!accountWarnings.current)accountWarnings.current=createAccountLoginWarningHandler({base:START_URL,document:()=>healthDocument.current,
+    show:(title,message,buttons)=>Alert.alert(title,message,buttons),inject:script=>webViewRef.current?.injectJavaScript(script)});
   const initialLoadFired = useRef(false);
   const [canGoBack, setCanGoBack] = useState(false);
   const [webViewUrl, setWebViewUrl] = useState(START_URL);
   const [classLinkRevision, setClassLinkRevision] = useState(0);
+  const recovery=useWebViewRecovery(webViewRef,START_URL,setWebViewUrl);
+  const navigateAuth=useCallback(url=>recovery.replace(url),[recovery.replace]);
+  const nativeAuth=useNativeAuth(webViewRef,START_URL,navigateAuth);
+  const navigateNativeClient=useCallback(url=>{
+    let login=false;try{login=/^\/(?:site\/)?login\/?$/.test(new URL(url).pathname);}catch{}
+    if(login)nativeAuth.open(url);else setWebViewUrl(url);
+  },[nativeAuth.open]);
   const notifications = usePushNotifications(webViewRef, START_URL, setWebViewUrl);
-  const nativeGym = useNativeGym(webViewRef, START_URL, setWebViewUrl);
+  const nativeGym = useNativeGym(webViewRef, START_URL, navigateNativeClient);
+  const clientBookings=useClientBookings(webViewRef,START_URL,nativeGym.data?.accountKey,!!nativeGym.data&&nativeGym.screen==='web'&&nativeGym.webSection==='bookings',nativeGym.data?.language);
+  const nativeAdmin = useNativeAdmin(webViewRef, START_URL);
+  const adminPages = useNativeAdminPages(webViewRef, START_URL, setWebViewUrl);
+  const fitnessAccountKey=nativeGym.data?.accountKey||adminPages.document?.header?.accountKey;
+  const workoutSync=useWorkoutSync(webViewRef,START_URL,fitnessAccountKey);
+  const previousFitnessAccount=useRef(null);
+  useEffect(()=>{
+    if(/^[a-f0-9]{64}$/.test(fitnessAccountKey||''))SecureStore.setItemAsync('fitness-last-account',fitnessAccountKey).catch(()=>{});
+    else if(previousFitnessAccount.current)SecureStore.deleteItemAsync('fitness-last-account').catch(()=>{});
+    previousFitnessAccount.current=fitnessAccountKey;
+  },[fitnessAccountKey]);
+  const companyColor = useCompanyColor(COMPANY_APP.pagecode,
+    adminPages.document?.header?.color || nativeGym.data?.company?.color, COMPANY_APP.color);
+  const recoveryLabels=nativeGymTranslations(adminPages.document?.language||nativeGym.data?.language);
 
   useEffect(() => {
     let disposed = false;
     let receivedLink = false;
     const openClassLink = (url) => {
+      const authTarget=authLinkTarget(url,SITE_URL);
+      if(authTarget&&!disposed){nativeAuth.open(authTarget);return;}
       const target = classLinkTarget(url, SITE_URL);
       if (target && !disposed) {
         setWebViewUrl(target);
@@ -458,20 +388,43 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
     initialLoadFired.current = true;
     if (onInitialLoadComplete) onInitialLoadComplete();
   }, [onInitialLoadComplete]);
+  useEffect(()=>{if(recovery.status!=='ready')markReady();},[recovery.status,markReady]);
+  useEffect(()=>{if(nativeAuth.active&&!nativeAuth.checkingSession)markReady();},[nativeAuth.active,nativeAuth.checkingSession,markReady]);
 
   const handleLoadEnd = useCallback((syntheticEvent) => {
-    nativeGym.onLoadEnd(syntheticEvent);
+    if(!recovery.end(syntheticEvent?.nativeEvent?.url,recovery.revision))return;
     notifications.onLoadEnd(syntheticEvent);
-    // Fallback only — prefer CONTENT_READY from the page after overlay is gone.
-    setTimeout(markReady, 2500);
-  }, [notifications.onLoadEnd, markReady, nativeGym.onLoadEnd]);
+    const finalUrl = syntheticEvent?.nativeEvent?.url;
+    nativeAuth.onLoadEnd(finalUrl);
+    if(nativeGym.data||isLoginUrl(finalUrl)||isClientDashboard(finalUrl,START_URL))nativeGym.onLoadEnd(syntheticEvent);
+    clientBookings.onLoadEnd(finalUrl);
+    nativeAdmin.onNavigation(finalUrl);
+    webViewRef.current?.injectJavaScript(nativeAdmin.injectedScript);
+    adminPages.onLoadEnd(finalUrl);
+    // CONTENT_READY can reveal the form earlier; a finished document needs no fixed wait.
+    markReady();
+  }, [notifications.onLoadEnd, markReady, nativeAdmin.onNavigation, nativeAdmin.injectedScript, adminPages.onLoadEnd,recovery.end,recovery.revision,clientBookings.onLoadEnd,nativeGym.onLoadEnd,nativeAuth.onLoadEnd]);
 
   const onWebViewMessage = useCallback(async ({ nativeEvent }) => {
-    if (!nativeEvent || typeof nativeEvent.data !== 'string' || nativeEvent.data.length > 50000) return;
+    if (!nativeEvent || typeof nativeEvent.data !== 'string') return;
+    if(nativeAuth.onMessage(nativeEvent)){markReady();return;}
+    if(recovery.message(nativeEvent)){markReady();return;}
+    if(accountWarnings.current(nativeEvent))return;
+    if(workoutSync.onMessage(nativeEvent))return;
+    if(clientBookings.onMessage(nativeEvent))return;
+    const adminEvent=adminPages.onMessage(nativeEvent);
+    if (adminEvent) {
+      if(adminEvent.documentRole==='client'&&!isClientDashboard(adminEvent.documentUrl,START_URL))nativeGym.onLoadEnd({nativeEvent:{...nativeEvent,url:adminEvent.documentUrl}});
+      if(adminEvent.documentRole==='admin'&&nativeGym.data)nativeGym.suspendForAdmin();
+      return;
+    }
+    if (nativeAdmin.onMessage(nativeEvent)) return;
+    if (nativeEvent.data.length > 50000) return;
     if (nativeGym.onMessage(nativeEvent)) return;
     let message;
     try { message = JSON.parse(nativeEvent.data); } catch { return; }
     if (message.type === 'CONTENT_READY') {
+      nativeGym.onAuthPageReady(nativeEvent.url);
       markReady();
       return;
     }
@@ -498,12 +451,12 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       return;
     }
     if (message.type === 'gym.calendar.create') {
-      await calendarHandler.current(message, nativeEvent.url || webViewUrl);
+      if(isUserCalendarAction(message))await calendarHandler.current(message, nativeEvent.url || webViewUrl,fitnessAccountKey);
       return;
     }
     if (!trustedCalendarOrigin(nativeEvent.url || webViewUrl, START_URL)) return;
     notifications.onMessage(message);
-  }, [markReady, notifications.onMessage, onThemeChange, webViewUrl, nativeGym.onMessage]);
+  }, [markReady, notifications.onMessage, onThemeChange, webViewUrl, nativeGym.onMessage, nativeGym.onLoadEnd, nativeGym.onAuthPageReady, nativeGym.data, nativeGym.suspendForAdmin, nativeAdmin.onMessage, adminPages.onMessage,clientBookings.onMessage,workoutSync.onMessage,fitnessAccountKey,nativeAuth.onMessage]);
 
   const shouldRedirectToGymDashboard = useCallback((url) => {
     if (!url || url === GYM_DASHBOARD_URL) return false;
@@ -518,6 +471,10 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
   }, []);
 
   const onAndroidBackPress = useCallback(() => {
+    if(nativeAuth.active&&nativeAuth.kind!=='login'){nativeAuth.login();return true;}
+    if (nativeAdmin.rosterOpen) { nativeAdmin.closeRoster(); return true; }
+    if (nativeAdmin.screen === 'classes') { nativeAdmin.showDashboard(); return true; }
+    if (adminPages.back()) return true;
     if (nativeGym.data) {
       if (nativeGym.screen === 'web' && nativeGym.webSection === 'bookings') return false;
       nativeGym.openWeb('bookings'); return true;
@@ -527,7 +484,8 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       return true;
     }
     return false;
-  }, [canGoBack, nativeGym.data, nativeGym.screen, nativeGym.webSection, nativeGym.openWeb]);
+  }, [canGoBack, nativeGym.data, nativeGym.screen, nativeGym.webSection, nativeGym.openWeb,
+    nativeAdmin.rosterOpen, nativeAdmin.closeRoster, nativeAdmin.screen, nativeAdmin.showDashboard, adminPages.back,nativeAuth.active,nativeAuth.kind,nativeAuth.login]);
 
   useEffect(() => {
     if (Platform.OS !== 'android') return;
@@ -542,24 +500,35 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
 
   return (
   <View ref={screenRef} style={styles.container} onLayout={measureBottomSpace} collapsable={false}>
-    <NativeGymShell gym={nativeGym} bottomExtension={bottomExtension}>
+    <View style={nativeAuth.active?styles.authWeb:styles.container} pointerEvents={nativeAuth.active?'none':'auto'} accessibilityElementsHidden={nativeAuth.active} importantForAccessibility={nativeAuth.active?'no-hide-descendants':'auto'}>
+    <NativeGymShell gym={nativeGym} bottomExtension={bottomExtension} brandColor={companyColor} bookings={clientBookings} sharing={nativeAdmin}>
+    <NativeAdminFrame pages={adminPages} admin={nativeAdmin} onBack={onAndroidBackPress} brandColor={companyColor}>
+    <NativeAdminShell admin={nativeAdmin} framed={!!adminPages.document} brandColor={companyColor} accountKey={fitnessAccountKey}>
     <WebView
       ref={webViewRef}
-      key={`${webViewUrl}:${classLinkRevision}`}
+      key={`${webViewUrl}:${classLinkRevision}:${recovery.revision}`}
       source={{ uri: webViewUrl }}
       style={styles.webView}
       containerStyle={styles.container}
-      injectedJavaScript={nativeGym.injectedScript + FITNESS_OAUTH_BRIDGE_SCRIPT + HEALTH_BRIDGE_SCRIPT + CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT + (Platform.OS === 'ios' ? WEBVIEW_MODAL_SCRIPT : '')}
-      injectedJavaScriptBeforeContentLoaded={nativeGym.injectedScript + FITNESS_OAUTH_BRIDGE_SCRIPT + HEALTH_BRIDGE_SCRIPT + CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + GYM_REDIRECT_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT + (Platform.OS === 'ios' ? WEBVIEW_MODAL_SCRIPT : '')}
+      injectedJavaScript={nativeAuth.injectedScript + nativeGym.injectedScript + FITNESS_OAUTH_BRIDGE_SCRIPT + HEALTH_BRIDGE_SCRIPT + CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT + (Platform.OS === 'ios' ? WEBVIEW_MODAL_SCRIPT : '') + nativeAdmin.injectedScript + positionRestoreScript(START_URL)}
+      injectedJavaScriptBeforeContentLoaded={nativeAuth.injectedScript + nativeGym.injectedScript + FITNESS_OAUTH_BRIDGE_SCRIPT + HEALTH_BRIDGE_SCRIPT + CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT + (Platform.OS === 'ios' ? WEBVIEW_MODAL_SCRIPT : '') + nativeAdmin.injectedScript + positionRestoreScript(START_URL)}
       onMessage={onWebViewMessage}
-      onLoadStart={({ nativeEvent }) => { nativeGym.onNavigation(nativeEvent.url); healthDocument.current = {url: nativeEvent.url || '', version: healthDocument.current.version + 1}; }}
+      onLoadStart={({ nativeEvent }) => { if(!recovery.start(nativeEvent.url,recovery.revision))return;nativeAuth.onNavigation(nativeEvent.url);clientBookings.onNavigation(nativeEvent.url);nativeGym.onNavigation(nativeEvent.url); nativeAdmin.onNavigation(nativeEvent.url); adminPages.onNavigation(nativeEvent.url); healthDocument.current = {url: nativeEvent.url || '', version: healthDocument.current.version + 1}; }}
       onLoadEnd={handleLoadEnd}
       onError={(syntheticEvent) => {
         const { nativeEvent } = syntheticEvent;
-        console.warn('[WebView] load error', nativeEvent?.description || nativeEvent);
+        nativeGym.onAuthLoadError(nativeEvent);
+        nativeAuth.fail(nativeEvent);
+        console.warn('[WebView] load error', nativeAuth.active?{code:nativeEvent?.code}:nativeEvent?.description || nativeEvent);
+        recovery.error(nativeEvent||{},recovery.revision);
         markReady();
       }}
+      onContentProcessDidTerminate={()=>recovery.terminated(recovery.revision)}
+      onRenderProcessGone={()=>recovery.terminated(recovery.revision)}
+      renderError={()=>null}
       onHttpError={(syntheticEvent) => {
+        nativeAuth.fail(syntheticEvent?.nativeEvent);
+        nativeGym.onAuthLoadError(syntheticEvent?.nativeEvent);
         if (notifications.onHttpError(syntheticEvent)) return;
         console.warn('[WebView] HTTP error', syntheticEvent?.nativeEvent?.statusCode);
       }}
@@ -574,6 +543,7 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       showsVerticalScrollIndicator={false}
       allowsInlineMediaPlayback
       mediaPlaybackRequiresUserAction={false}
+      keyboardDisplayRequiresUserAction={true}
       setBuiltInZoomControls={false}
       displayZoomControls={false}
       originWhitelist={['*']}
@@ -583,9 +553,13 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
           return false;
         }
 
-        return true;
+        if(request.isTopFrame!==false)nativeAuth.onLocation(request.url);
+        recovery.navigation(request);return true;
       }}
       onNavigationStateChange={(navState) => {
+        recovery.location(navState.url,recovery.revision);
+        nativeAuth.onLocation(navState.url);
+        adminPages.onLocation(navState.url);
         healthDocument.current.url = navState.url || healthDocument.current.url;
         notifications.onNavigation(navState.url);
         setCanGoBack(navState.canGoBack);
@@ -599,7 +573,7 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
           redirectToGymDashboard();
         }
       }}
-      sharedCookiesEnabled
+      sharedCookiesEnabled={Platform.OS !== 'ios'}
       thirdPartyCookiesEnabled
       cacheEnabled
       incognito={false}
@@ -608,12 +582,28 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       domStorageEnabled
       allowsBackForwardNavigationGestures
     />
+    </NativeAdminShell>
+    </NativeAdminFrame>
     </NativeGymShell>
+    </View>
+    {nativeAuth.active&&<NativeAuthScreen auth={nativeAuth} base={START_URL} color={/^#[a-f0-9]{6}$/i.test(nativeAuth.document?.color||'')?nativeAuth.document.color:companyColor}/>}
+    {!nativeAuth.active&&recovery.status!=='ready'&&<View testID="webview-recovery" style={styles.recovery}>
+      <Text style={styles.recoveryTitle}>{recovery.status==='recovering'?recoveryLabels.reconnecting:recoveryLabels.appLoadFailed}</Text>
+      {recovery.status==='recovering'?<ActivityIndicator color={companyColor}/>:<>
+        <Text style={styles.recoveryText}>{recoveryLabels.reconnectHelp}</Text>
+        <Text selectable style={styles.recoveryText}>{recoveryLabels.errorReference}: {recovery.reference}</Text>
+        <Pressable accessibilityRole="button" onPress={recovery.retry} style={[styles.retry,{backgroundColor:companyColor}]}><Text style={styles.retryText}>{recoveryLabels.retry}</Text></Pressable>
+      </>}
+    </View>}
+    <NativeOfflineWorkouts available={!fitnessAccountKey&&(nativeGym.bootstrapState==='failed'||recovery.status==='failed')} t={recoveryLabels} color={companyColor}/>
   </View>
 );
 }
 
 const styles = StyleSheet.create({
+  authWeb:{position:'absolute',left:-10000,top:0,width:'100%',height:'100%',opacity:0},
+  recovery:{position:'absolute',top:0,right:0,bottom:0,left:0,zIndex:100,backgroundColor:'#fff',alignItems:'center',justifyContent:'center',padding:28,gap:18},
+  recoveryTitle:{fontSize:23,fontWeight:'600',color:'#101828',textAlign:'center'},recoveryText:{fontSize:14,color:'#667085',textAlign:'center'},retry:{paddingVertical:14,paddingHorizontal:26,borderRadius:14,minHeight:48},retryText:{fontSize:16,fontWeight:'600',color:'#fff'},
   container: {
     flex: 1,
     backgroundColor: '#ffffff',

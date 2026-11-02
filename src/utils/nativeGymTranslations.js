@@ -1,8 +1,10 @@
 const en = {
+  paused:'Paused',setDone:'Set complete',roundLimit:'Choose between 1 and 30 sets.',alarmPermission:'Allow Alarms & reminders in phone settings for precise background timer alerts.',synced:'Synced',savedOffline:'Saved on this phone',saveHealth:'Save to Apple Health',healthSaved:'Saved to Apple Health',healthSaveError:'Could not save. Allow workout writing in Apple Health and try again.',liveActivityUnavailable:'Lock Screen progress is unavailable. The timer still runs.',running:'Running',offlineWorkouts:'Offline workout timer & history',offlineWorkoutHelp:'Saved on this phone. Workouts sync after you sign back into this account online.',
+  reconnecting:'Reconnecting…',reconnectHelp:'We could not reopen this page. Check your connection and try again.',
   language:'Language',
   appLoading:'Loading your app…',appLoadFailed:'Unable to load your app',errorReference:'Error reference',
   appLoadHelp:'Please try again. If this continues, contact your club so they can check your account access.',signInAgain:'Sign in again',
-  birthdays:'Birthdays', birthdaysToday:'Birthdays today', upcomingBirthdays:'Upcoming birthdays', noBirthdays:'No birthdays in the next seven days.',
+  birthdays:'Birthdays', birthdaysToday:'Birthdays today', upcomingBirthdays:'Upcoming birthdays', noBirthdays:'No birthdays in the next seven days.',happyBirthday:'Happy birthday!',happyBirthdayBody:'Wishing you a wonderful birthday!',
   home: 'Overview', pass: 'My pass', sessions: 'Sessions', timer: 'Timer', bookings: 'Bookings',
   welcome: 'Welcome back', settings: 'Settings', back: 'Back to bookings', refresh: 'Refresh',
   logout:'Logout',
@@ -37,10 +39,12 @@ const en = {
   resetFilters:'Reset filters', weekRemaining:'training days left to reach your goal', streak:'weeks in a row',
 };
 const pt = {
+  paused:'Em pausa',setDone:'Série concluída',roundLimit:'Escolha entre 1 e 30 séries.',alarmPermission:'Permita Alarmes e lembretes nas definições do telemóvel para alertas precisos em segundo plano.',synced:'Sincronizado',savedOffline:'Guardado neste telemóvel',saveHealth:'Guardar na Saúde Apple',healthSaved:'Guardado na Saúde Apple',healthSaveError:'Não foi possível guardar. Permita a escrita de treinos na Saúde Apple e tente novamente.',liveActivityUnavailable:'O progresso no ecrã bloqueado não está disponível. O cronómetro continua a funcionar.',running:'Em curso',offlineWorkouts:'Cronómetro e histórico offline',offlineWorkoutHelp:'Guardado neste telemóvel. Os treinos são sincronizados quando voltar a iniciar sessão nesta conta com ligação à Internet.',
+  reconnecting:'A restabelecer ligação…',reconnectHelp:'Não foi possível reabrir esta página. Verifique a ligação e tente novamente.',
   language:'Idioma',
   appLoading:'A carregar a sua aplicação…',appLoadFailed:'Não foi possível carregar a aplicação',errorReference:'Referência do erro',
   appLoadHelp:'Tente novamente. Se o problema continuar, contacte o clube para verificar o acesso à sua conta.',signInAgain:'Iniciar sessão novamente',
-  birthdays:'Aniversários', birthdaysToday:'Aniversários de hoje', upcomingBirthdays:'Próximos aniversários', noBirthdays:'Não há aniversários nos próximos sete dias.',
+  birthdays:'Aniversários', birthdaysToday:'Aniversários de hoje', upcomingBirthdays:'Próximos aniversários', noBirthdays:'Não há aniversários nos próximos sete dias.',happyBirthday:'Parabéns!',happyBirthdayBody:'Desejamos-lhe um excelente dia de aniversário!',
   home: 'Resumo', pass: 'O meu passe', sessions: 'Sessões', timer: 'Cronómetro', bookings: 'Aulas',
   welcome: 'Bem-vindo de volta', settings: 'Definições', back: 'Voltar às aulas', refresh: 'Atualizar',
   logout:'Terminar sessão',

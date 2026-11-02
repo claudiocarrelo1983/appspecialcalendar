@@ -8,10 +8,15 @@ import { formatDuration, qrRuns } from '../utils/nativeGymCore';
 import NativeWorkoutTimer from './NativeWorkoutTimer';
 import NativeNotifications from './NativeNotifications';
 import NativeBirthdays from './NativeBirthdays';
+import NativeClientBookings from './NativeClientBookings';
+import NativeClientTabIcon from './NativeClientTabIcon';
+import useBirthdayCount from '../utils/useBirthdayCount';
 import {Icon,Text,NativeFontContext} from './NativeGymTypography';
 import theme,{brandSoft} from '../utils/gymUiTheme';
 import companyAppConfig from '../utils/companyAppConfig';
 import {companyLogoImage} from '../utils/nativeCompanyBranding';
+import NativeCompanyLogo from './NativeCompanyLogo';
+import NativeFitnessCalendar from './NativeFitnessCalendar';
 
 function Button({label,onPress,color,disabled,secondary}) {
   return <Pressable accessibilityRole="button" accessibilityState={{disabled:!!disabled}} disabled={disabled}
@@ -144,15 +149,16 @@ function Home({gym,t,color}) {
       <Button label={t.bookings} color={color} onPress={()=>gym.openWeb('bookings')}/></Card>
   </View>;
 }
-export default function NativeGymShell({gym,bottomExtension=0,children}) {
+export default function NativeGymShell({gym,bottomExtension=0,children,brandColor,bookings,sharing}) {
   const insets=useSafeAreaInsets(), data=gym.data;
   const [refreshing,setRefreshing]=useState(false);
-  const [menuOpen,setMenuOpen]=useState(false),[logoFailed,setLogoFailed]=useState(false);
-  const [logoRatio,setLogoRatio]=useState(1);
-  const [languageOpen,setLanguageOpen]=useState(false);
+  const [menuOpen,setMenuOpen]=useState(false);
+  const [calendarOpen,setCalendarOpen]=useState(false);
+  const [languageOpen,setLanguageOpen]=useState(false),[bookingPanel,setBookingPanel]=useState(null);
   const [birthdaysOpen,setBirthdaysOpen]=useState(false);
+  const [birthdayCount,onBirthdayRows]=useBirthdayCount(gym);
   const [notificationsOpen,setNotificationsOpen]=useState(false),[unread,setUnread]=useState(0);
-  useEffect(()=>{setNotificationsOpen(false);setMenuOpen(false);setLanguageOpen(false);setBirthdaysOpen(false);},[data?.accountKey]);
+  useEffect(()=>{setCalendarOpen(false);setNotificationsOpen(false);setMenuOpen(false);setLanguageOpen(false);setBirthdaysOpen(false);setBookingPanel(null);},[data?.accountKey]);
   useEffect(()=>setUnread(Math.max(0,Number(data?.unreadNotifications)||0)),[data?.accountKey,data?.unreadNotifications]);
   const [fontsLoaded]=useFonts({
     GymBoxicons:require('../assets/fonts/boxicons.ttf'),
@@ -160,10 +166,13 @@ export default function NativeGymShell({gym,bottomExtension=0,children}) {
     GymBodySemiBold:require('../assets/fonts/Poppins-SemiBold.ttf'),
     GymHeading:require('../assets/fonts/BricolageGrotesque-Bold.ttf'),
   });
-  useEffect(()=>{setLogoFailed(false);setLogoRatio(1);},[data?.company.logoUrl]);
+
   const t=nativeGymTranslations(data?.language);
-  const color=/^#[a-f0-9]{6}$/i.test(data?.company?.color||'')?data.company.color:companyAppConfig().color;
+  const color=brandColor||(/^#[a-f0-9]{6}$/i.test(data?.company?.color||'')?data.company.color:companyAppConfig().color);
   const native=!!data && gym.screen!=='web';
+  const nativeBookings=!!data&&!!bookings&&gym.screen==='web'&&gym.webSection==='bookings';
+  const goBookings=()=>gym.showBookings?gym.showBookings():gym.openWeb('bookings');
+  const webLoading=!!data&&gym.screen==='web'&&!!gym.webTarget;
   const setup=!data && ['loading','failed'].includes(gym.bootstrapState);
   const tabs=data?['bookings',...(data.features.pass?['pass']:[]),
     ...(data.features.sessions?['sessions']:[]),...(data.features.timer?['timer']:[]),'settings']:[];
@@ -173,33 +182,26 @@ export default function NativeGymShell({gym,bottomExtension=0,children}) {
   },[gym.screen,data?.features.pass,data?.features.sessions,data?.features.timer]);
   const doRefresh=async()=>{setRefreshing(true);try{await gym.refresh();}finally{setRefreshing(false);}};
   return <NativeFontContext.Provider value={fontsLoaded}><View style={[s.root,{marginBottom:-bottomExtension}]}>
-    {!!data&&<View style={s.header}>
-      {gym.screen==='web'&&gym.webSection!=='bookings'&&<Pressable accessibilityRole="button" accessibilityLabel={t.back} accessibilityHint={t.leaveWeb}
-        onPress={()=>gym.openWeb('bookings')} style={s.headerButton}><Icon name="back" color={theme.text}/></Pressable>}
-      <Pressable accessibilityRole="button" accessibilityLabel={t.bookings} onPress={()=>gym.openWeb('bookings')} style={s.headerIdentity}>
-        <Image accessibilityLabel={data.company.name} source={!logoFailed&&/^https?:\/\//.test(data.company.logoUrl||'')?
-          {uri:data.company.logoUrl}:companyLogoImage()} resizeMode="contain"
-          onError={()=>{setLogoFailed(true);setLogoRatio(1);}}
-          onLoad={({nativeEvent})=>{
-            const {width,height}=nativeEvent.source||{};
-            if(width>0&&height>0)setLogoRatio(width/height);
-          }} style={[s.logo,{width:Math.min(150,48*logoRatio)}]}/>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={t.language} accessibilityState={{expanded:languageOpen,disabled:gym.busy}}
-        disabled={gym.busy} onPress={()=>setLanguageOpen(true)} style={s.languageButton}>
-        <Text style={s.languageCode}>{data.language.toUpperCase()}</Text><Text style={s.languageChevron}>⌄</Text>
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={t.notifications+(unread?' ('+unread+')':'')} onPress={()=>setNotificationsOpen(true)} style={s.headerButton}>
-        <Icon name="bell" color={theme.text}/>
-        {unread>0&&<View style={s.unreadBadge}><Text style={s.unreadText}>{unread>99?'99+':unread}</Text></View>}
-      </Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={t.birthdays} onPress={()=>setBirthdaysOpen(true)} style={s.headerButton}>
-        <Icon name="gift" color={theme.text}/></Pressable>
-      <Pressable accessibilityRole="button" accessibilityLabel={t.more} onPress={()=>setMenuOpen(true)} style={s.headerButton}>
-        <Icon name="settings" color={theme.text}/></Pressable>
+    {!!data&&<View testID="native-client-header" style={s.appBar}>
+      <View style={s.header}>
+        {gym.screen==='web'&&!['bookings','settings'].includes(gym.webSection)&&<Pressable accessibilityRole="button" accessibilityLabel={t.back} accessibilityHint={t.leaveWeb} onPress={goBookings} style={s.headerButton}><Icon name="back" color={theme.muted}/></Pressable>}
+        <Pressable accessibilityRole="button" accessibilityLabel={t.bookings} onPress={goBookings} style={s.logoButton}>
+          <NativeCompanyLogo url={data.company.logoUrl} label={data.company.name}/>
+        </Pressable>
+        <View style={s.headerIdentity}><Text heading numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={s.club}>{data.company.name}</Text><Text numberOfLines={1} style={s.subtitle}>{data.client.name} · Member</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel={t.notifications+(unread?' ('+unread+')':'')} onPress={()=>setNotificationsOpen(true)} style={s.headerButton}><Icon name="bell" color={theme.muted}/>{unread>0&&<View style={s.unreadBadge}><Text style={s.unreadText}>{unread>99?'99+':unread}</Text></View>}</Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={t.more} onPress={()=>setMenuOpen(true)} style={s.headerButton}><Text style={s.menuIcon}>☰</Text></Pressable>
+      </View>
+      <View style={s.shortcuts}>
+        <Pressable accessibilityRole="button" accessibilityLabel={t.language} accessibilityState={{expanded:languageOpen,disabled:gym.busy}} disabled={gym.busy} onPress={()=>setLanguageOpen(true)} style={s.shortcut}><Text style={s.languageCode}>{data.language.toUpperCase()}</Text><View accessible={false} style={s.languageChevronBox}><View style={s.languageChevron}/></View></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={t.birthdays} onPress={()=>setBirthdaysOpen(true)} style={s.shortcut}><Icon name="gift" color={theme.muted} size={19}/><Text style={s.shortcutText}>{t.birthdays}</Text>{birthdayCount>0&&<View testID="client-birthday-badge" style={s.unreadBadge}><Text style={s.unreadText}>{birthdayCount>99?'99+':birthdayCount}</Text></View>}</Pressable>
+      </View>
+      {!!bookings&&<View style={s.shortcuts}>{['upcoming','history'].map(kind=><Pressable key={kind} accessibilityRole="button" accessibilityLabel={kind==='upcoming'?t.upcoming:(data.language==='pt'?'Histórico':'History')} onPress={()=>{setBookingPanel(kind);if(!bookings.page&&!bookings.busy)bookings.load();}} style={s.shortcut}><Icon name={kind==='upcoming'?'bookings':'sessions'} color={color} size={19}/><Text style={s.shortcutText}>{kind==='upcoming'?t.upcoming:(data.language==='pt'?'Histórico':'History')}</Text></Pressable>)}</View>}
     </View>}
-    <View style={native||setup?s.hiddenWeb:s.web} pointerEvents={native||setup?'none':'auto'}
-      accessibilityElementsHidden={native||setup} importantForAccessibility={native||setup?'no-hide-descendants':'auto'}>{children}</View>
+    <View style={native||nativeBookings||setup||webLoading||!!gym.authTransition?s.hiddenWeb:s.web} pointerEvents={native||nativeBookings||setup||webLoading||!!gym.authTransition?'none':'auto'}
+      accessibilityElementsHidden={native||nativeBookings||setup||webLoading||!!gym.authTransition} importantForAccessibility={native||nativeBookings||setup||webLoading||!!gym.authTransition?'no-hide-descendants':'auto'}>{children}</View>
+    {webLoading&&<View testID="native-client-web-transition" style={s.setup}><ActivityIndicator color={color}/><Text style={s.muted}>{t.loading}</Text></View>}
+    {nativeBookings&&<NativeClientBookings key={data.accountKey} accountKey={data.accountKey} bookings={bookings} language={data.language} color={color} base={companyAppConfig().siteUrl} sharing={sharing} onSignIn={gym.signIn}/>}
     {setup&&<View testID="native-client-setup" style={s.setup}>
       <Image source={companyLogoImage()} resizeMode="contain" style={{width:160,height:64}}/>
       <Text heading style={s.cardTitle}>{gym.bootstrapState==='loading'?t.appLoading:t.appLoadFailed}</Text>
@@ -223,13 +225,24 @@ export default function NativeGymShell({gym,bottomExtension=0,children}) {
         </View>
       </ScrollView>
     </View>}
-    {!!data&&<View style={[s.tabs,{paddingBottom:(Platform.OS==='ios'?theme.iosFooterPadding:theme.androidFooterPadding)+Math.min(insets.bottom,bottomExtension)}]}>
+    {!!data&&<View style={{backgroundColor:theme.surface}}><View style={s.tabs}>
       {tabs.map(route=>{const active=gym.screen===route||(gym.screen==='web'&&gym.webSection===route);return <Pressable key={route}
         accessibilityRole="tab" accessibilityLabel={t[route]} accessibilityState={{selected:active}}
-        onPress={()=>['bookings','settings'].includes(route)?gym.openWeb(route):gym.select(route)} style={s.tab}>
-        <Icon name={route} size={28} color={active?color:'#999999'}/>
-        <Text numberOfLines={1} style={[s.tabLabel,{color:active?color:'#999999'}]}>{t[route]}</Text></Pressable>;})}
-    </View>}
+        onPress={()=>route==='bookings'?goBookings():route==='settings'?gym.openWeb(route):gym.select(route)} style={[s.tab,active&&{backgroundColor:brandSoft(color,.09)}]}>
+        <NativeClientTabIcon name={route} color={active?color:theme.muted}/>
+        <Text numberOfLines={1} style={[s.tabLabel,{color:active?color:theme.muted}]}>{t[route]}</Text></Pressable>;})}
+    </View><View pointerEvents="none" style={{height:Math.max(0,bottomExtension)}}/></View>}
+    <Modal transparent visible={!!data&&!!bookingPanel} animationType="slide" onRequestClose={()=>setBookingPanel(null)}>
+      <View style={s.bookingOverlay}><View style={s.bookingSheet}>
+        <View style={s.bookingHeading}><Text heading style={s.cardTitle}>{bookingPanel==='upcoming'?t.upcoming:(data?.language==='pt'?'Histórico':'History')}</Text><Pressable accessibilityRole="button" accessibilityLabel={t.close} onPress={()=>setBookingPanel(null)} style={s.headerButton}><Text style={s.menuIcon}>×</Text></Pressable></View>
+        <ScrollView contentContainerStyle={{padding:16,gap:14,paddingBottom:Math.max(20,insets.bottom)}}>
+          {bookings?.busy&&<ActivityIndicator color={color}/>}
+          {!!bookings?.error&&<><Text accessibilityRole="alert" style={s.warning}>{data?.language==='pt'?'Não foi possível carregar as reservas.':'Could not load bookings.'}</Text><Button label={t.retry} color={color} onPress={()=>bookings.load()}/></>}
+          {!(bookings?.error)&&bookings?.page&&((bookingPanel==='upcoming'?bookings.page.upcomingBookings:bookings.page.bookingHistory||bookings.page.history)||[]).map(row=><View key={row.id} style={s.historyRow}><View style={{flex:1,gap:5}}><Text heading style={s.strong}>{row.title}</Text><Text style={s.muted}>{[row.date,row.status].filter(Boolean).join(' · ')}</Text></View></View>)}
+          {!bookings?.busy&&!bookings?.error&&bookings?.page&&!((bookingPanel==='upcoming'?bookings.page.upcomingBookings:bookings.page.bookingHistory||bookings.page.history)||[]).length&&<Text style={s.muted}>{t.noBookings}</Text>}
+        </ScrollView>
+      </View></View>
+    </Modal>
     <Modal transparent visible={!!data&&languageOpen} animationType="fade" onRequestClose={()=>setLanguageOpen(false)}>
       <Pressable accessibilityRole="button" accessibilityLabel={t.close} onPress={()=>setLanguageOpen(false)}
         style={[s.languageOverlay,{paddingTop:insets.top+70}]}>
@@ -247,29 +260,33 @@ export default function NativeGymShell({gym,bottomExtension=0,children}) {
     <Modal transparent visible={!!data&&menuOpen} animationType="fade" onRequestClose={()=>setMenuOpen(false)}>
       <Pressable onPress={()=>setMenuOpen(false)} style={s.menuOverlay}><View style={s.menuPanel}>
         <Text heading style={s.cardTitle}>{t.more}</Text>
+        <Pressable accessibilityRole="button" onPress={()=>{setMenuOpen(false);setCalendarOpen(true);}} style={s.menuRow}><Icon name="bookings" color={color}/><Text style={s.strong}>{data?.language==='pt'?'O meu calendário':'My calendar'}</Text></Pressable>
         {['profile','packages','performance','notifications','settings'].map(route=><Pressable key={route} accessibilityRole="button"
           onPress={()=>{setMenuOpen(false);gym.openWeb(route);}} style={s.menuRow}>
           <Icon name={route==='performance'?'week':route==='packages'?'pass':route==='notifications'?'bell':route} color={color}/>
           <Text style={s.strong}>{t[route]}</Text></Pressable>)}
         <Pressable accessibilityRole="button" disabled={gym.busy} onPress={()=>{
-          setMenuOpen(false);gym.logout().catch(failure=>Alert.alert(t.logout,failure.message==='offline'?t.offline:failure.message));
+          setMenuOpen(false);gym.logout().catch(failure=>Alert.alert(t.logout,[failure.message==='offline'?t.offline:failure.message,failure.diagnostic].filter(Boolean).join('\n')));
         }} style={s.menuRow}><Icon name="logout" color={theme.danger}/><Text style={[s.strong,{color:theme.danger}]}>{t.logout}</Text></Pressable>
         <Button secondary label={t.close} color={color} onPress={()=>setMenuOpen(false)}/>
       </View></Pressable>
     </Modal>
+    {gym.authTransition&&<View testID="native-auth-transition" style={s.authTransition}>{gym.authTransitionError?<><Text style={s.muted}>{data?.language==='pt'?'Não foi possível abrir o início de sessão.':'Could not open sign-in.'}</Text><Text style={s.muted}>{gym.authTransitionError}</Text><Button secondary color={color} label={t.retry} onPress={gym.signIn}/></>:<><ActivityIndicator color={color}/><Text style={s.muted}>{t.loading}</Text></>}</View>}
+    {!!data&&<NativeFitnessCalendar key={data.accountKey} accountKey={data.accountKey} language={data.language} color={color} visible={calendarOpen} onClose={()=>setCalendarOpen(false)}/>}
     {!!data&&<NativeNotifications gym={gym} t={t} color={color} visible={notificationsOpen} onClose={()=>setNotificationsOpen(false)} onUnread={setUnread}/>}
-    {!!data&&<NativeBirthdays gym={gym} t={t} color={color} visible={birthdaysOpen} onClose={()=>setBirthdaysOpen(false)}/>}
+    {!!data&&<NativeBirthdays gym={gym} t={t} color={color} visible={birthdaysOpen} onRows={onBirthdayRows} onClose={()=>setBirthdaysOpen(false)}/>}
   </View></NativeFontContext.Provider>;
 }
 const s=StyleSheet.create({
+  authTransition:{position:'absolute',top:0,right:0,bottom:0,left:0,backgroundColor:'#fff',alignItems:'center',justifyContent:'center',gap:18,padding:24,zIndex:20},
   root:{flex:1,backgroundColor:theme.page},web:{flex:1},hiddenWeb:{position:'absolute',top:0,left:0,width:'100%',height:'100%',opacity:0},
   setup:{flex:1,alignItems:'center',justifyContent:'center',padding:24,gap:20},
-  native:{flex:1},header:{minHeight:70,backgroundColor:theme.surface,paddingVertical:10,paddingHorizontal:16,flexDirection:'row',alignItems:'center',borderBottomWidth:1,borderColor:theme.border},
-  club:{fontSize:19,fontWeight:'800',color:theme.text},subtitle:{color:theme.muted,fontSize:12,marginTop:4},
-  headerIdentity:{flex:1,minWidth:0,alignItems:'flex-start',justifyContent:'center'},logo:{width:150,height:48,maxWidth:'100%'},
+  native:{flex:1},appBar:{backgroundColor:theme.surface,borderBottomWidth:1,borderColor:theme.border},header:{minHeight:70,backgroundColor:theme.surface,paddingVertical:10,paddingHorizontal:16,flexDirection:'row',alignItems:'center',gap:10},
+  club:{fontSize:18,fontWeight:'800',color:theme.text},subtitle:{color:theme.muted,fontSize:12,marginTop:4},
+  headerIdentity:{flex:1,minWidth:0,gap:2},logoButton:{minWidth:44,height:44,alignItems:'center',justifyContent:'center'},logo:{width:44,height:44},menuIcon:{fontSize:26,color:theme.muted},shortcuts:{flexDirection:'row',gap:8,paddingHorizontal:16,paddingBottom:12},shortcut:{position:'relative',flex:1,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:6,minHeight:38,borderRadius:12,backgroundColor:theme.surfaceSoft,paddingHorizontal:8},shortcutText:{fontSize:12,color:theme.text,flexShrink:1},bookingOverlay:{flex:1,backgroundColor:'#0005',justifyContent:'flex-end'},bookingSheet:{maxHeight:'80%',backgroundColor:theme.surface,borderTopLeftRadius:24,borderTopRightRadius:24},bookingHeading:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',padding:16,borderBottomWidth:1,borderColor:theme.border},
   headerButton:{position:'relative',width:44,height:48,alignItems:'center',justifyContent:'center'},
   languageButton:{minWidth:52,height:48,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:4},
-  languageCode:{fontSize:13,color:theme.text},languageChevron:{fontSize:18,color:theme.muted},
+  languageCode:{fontSize:13,color:theme.text},languageChevronBox:{width:19,height:19,alignItems:'center',justifyContent:'center'},languageChevron:{width:9,height:9,borderRightWidth:2,borderBottomWidth:2,borderColor:theme.muted,transform:[{translateY:-2},{rotate:'45deg'}]},
   languageOverlay:{flex:1,alignItems:'flex-end',paddingHorizontal:16,backgroundColor:'rgba(15,23,42,.12)'},
   languagePanel:{width:180,backgroundColor:theme.surface,borderRadius:12,borderWidth:1,borderColor:theme.border,padding:6,
     shadowColor:'#15243b',shadowOpacity:.12,shadowOffset:{width:0,height:3},shadowRadius:12,elevation:5},
@@ -313,8 +330,8 @@ const s=StyleSheet.create({
   passHeading:{alignItems:'center',gap:12},name:{fontSize:23,fontWeight:'800',color:'#0f172a',textAlign:'center'},
   badge:{backgroundColor:theme.successSoft,borderRadius:30,paddingHorizontal:14,paddingVertical:6},badgeText:{color:theme.success,fontWeight:'600'},
   qr:{alignSelf:'center',backgroundColor:'#fff'},center:{textAlign:'center',fontSize:13,color:'#64748b'},
-  tabs:{flexDirection:'row',backgroundColor:theme.surface,borderTopWidth:1,borderColor:theme.border,paddingTop:12,paddingHorizontal:6},
-  tab:{flex:1,minHeight:48,alignItems:'center',justifyContent:'center',gap:4},tabIcon:{fontSize:25},tabLabel:{fontSize:10,fontWeight:'600'},
+  tabs:{height:72,flexDirection:'row',alignItems:'center',backgroundColor:theme.surface,borderTopWidth:1,borderColor:theme.border,paddingHorizontal:4,gap:2},
+  tab:{flex:1,minWidth:0,height:56,alignItems:'center',justifyContent:'center',gap:4,borderRadius:16},tabLabel:{fontSize:10,lineHeight:14,textAlign:'center',includeFontPadding:false},
   back:{backgroundColor:'#fff',paddingHorizontal:18,minHeight:44,justifyContent:'center',borderBottomWidth:1,borderColor:'#e6edf4'},
   error:{backgroundColor:theme.warningSoft,padding:16,borderRadius:16,gap:12},warning:{color:theme.warning,fontSize:13,lineHeight:20},
   menuOverlay:{flex:1,backgroundColor:'rgba(15,23,42,.3)',padding:16,justifyContent:'center'},

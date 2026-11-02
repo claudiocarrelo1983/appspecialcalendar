@@ -5,6 +5,8 @@ export function notificationTarget(data, startUrl) {
   try {
     const base = new URL(startUrl), target = new URL(data.url, base);
     if (!['https:', 'http:'].includes(target.protocol) || target.origin !== base.origin || target.username || target.password) return null;
+    // A push tap opens information; calendar exports require a separate explicit action.
+    if(/^\/gym-class-calendar\/(?:event|class\.ics)\/?$/.test(target.pathname))return new URL('/dashboard-gym',base).href;
     return target.href;
   } catch { return null; }
 }

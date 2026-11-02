@@ -3,14 +3,14 @@ import {ActivityIndicator,Modal,Pressable,ScrollView,StyleSheet,View} from 'reac
 import {Text,Icon} from './NativeGymTypography';
 import theme,{brandSoft} from '../utils/gymUiTheme';
 
-export default function NativeBirthdays({gym,t,color,visible,onClose}) {
+export default function NativeBirthdays({gym,t,color,visible,onClose,onRows}) {
   const [rows,setRows]=useState([]),[busy,setBusy]=useState(false),[error,setError]=useState(false),[retry,setRetry]=useState(0);
   useEffect(()=>{
     if(!visible)return;
     let disposed=false;setRows([]);setBusy(true);setError(false);
     gym.request('birthdays').then(result=>{
       if(!Array.isArray(result?.rows))throw Error('offline');
-      if(!disposed)setRows(result.rows);
+      if(!disposed){setRows(result.rows);onRows?.(result.rows);}
     }).catch(()=>{if(!disposed)setError(true);}).finally(()=>{if(!disposed)setBusy(false);});
     return()=>{disposed=true;};
   },[visible,gym.data.accountKey,retry]);
@@ -25,6 +25,9 @@ export default function NativeBirthdays({gym,t,color,visible,onClose}) {
         {error&&<View style={{gap:12}}><Text style={s.muted}>{t.offline}</Text>
           <Pressable accessibilityRole="button" onPress={()=>setRetry(value=>value+1)} style={s.close}><Text style={{color}}>{t.retry}</Text></Pressable></View>}
         {!busy&&!error&&!rows.length&&<Text style={s.muted}>{t.noBirthdays}</Text>}
+        {!busy&&!error&&rows.some(row=>row.today===true&&row.isSelf===true)&&<View style={[s.greeting,{backgroundColor:brandSoft(color)}]}>
+          <Icon name="gift" color={color}/><View style={{flex:1,gap:6}}><Text heading style={s.title}>{t.happyBirthday}</Text><Text style={s.muted}>{t.happyBirthdayBody}</Text></View>
+        </View>}
         {[true,false].map(today=>{
           const group=rows.filter(row=>row.today===today);
           return group.length>0&&<View key={String(today)} style={{gap:12}}>
@@ -47,4 +50,5 @@ const s=StyleSheet.create({
   content:{padding:20,gap:20},section:{fontSize:14,fontWeight:'600'},muted:{fontSize:12,color:theme.muted,lineHeight:20},
   row:{flexDirection:'row',alignItems:'center',gap:10},icon:{width:36,height:36,borderRadius:10,alignItems:'center',justifyContent:'center'},
   name:{flex:1,color:theme.text,fontSize:13},
+  greeting:{flexDirection:'row',alignItems:'center',gap:12,padding:16,borderRadius:16},
 });

@@ -1,24 +1,46 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+import { classLinkTarget } from './classLinks';
+import {authPageKind} from './nativeAuthCore';
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
 import { cancelTimerAlert } from './nativeTimerAlerts';
-import { gymRequestScript, nativeShellStyleScript, NATIVE_GYM_MESSAGE, sameGymOrigin, isClientDashboard, validSnapshot, WEB_ROUTES } from './nativeGymCore';
+import { gymRequestScript, nativeShellStyleScript, authPageReadyScript, NATIVE_AUTH_READY, NATIVE_GYM_MESSAGE, sameGymOrigin, isClientDashboard, validSnapshot, WEB_ROUTES } from './nativeGymCore';
 
 export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
   const [data, setData] = useState(null);
   const [screen, setScreen] = useState('web');
   const [webSection,setWebSection]=useState('bookings');
+  const [webTarget,setWebTarget]=useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [bootstrapState,setBootstrapState] = useState('idle');
   const [bootstrapError,setBootstrapError] = useState('');
+  const [authTransition,setAuthTransition] = useState(false);
+  const [authTransitionError,setAuthTransitionError]=useState('');
+  const authTimer=useRef(null),authAttempt=useRef(0);
   const pending = useRef(new Map()), sequence = useRef(0), generation = useRef(0);
   const documentUrl = useRef(startUrl), mounted = useRef(true), dataRef = useRef(null);
   const screenRef = useRef('web'), refreshSequence = useRef(0);
   const authenticated = useRef(false);
+  const finishAuthTransition=useCallback(()=>{clearTimeout(authTimer.current);authTimer.current=null;setAuthTransition(false);setAuthTransitionError('');},[]);
+  const beginAuthTransition=useCallback(()=>{
+    clearTimeout(authTimer.current);setAuthTransition(true);setAuthTransitionError('');
+    authTimer.current=setTimeout(()=>{if(mounted.current)setAuthTransitionError('LOGIN_TIMEOUT');},20000);
+  },[]);
+  const onAuthPageReady=useCallback(url=>{
+    if(!sameGymOrigin(url,startUrl))return;
+    const path=new URL(url).pathname;
+    if(path==='/'||/^\/(?:site\/)?login\/?$/.test(path))finishAuthTransition();
+  },[startUrl,finishAuthTransition]);
+  const onAuthLoadError=useCallback(event=>{
+    if(Number(event?.code)!==-999&&event?.isTopFrame!==false)setWebTarget(null);
+    if(!authTransition||Number(event?.code)===-999||event?.isTopFrame===false)return;
+    clearTimeout(authTimer.current);setAuthTransitionError('LOGIN_'+String(event?.statusCode||event?.code||'CONNECTION'));
+  },[authTransition]);
   const changeScreen = useCallback((next) => { screenRef.current = next; setScreen(next); }, []);
   const clear = useCallback(() => {
+    setWebTarget(null);
     const old = dataRef.current;
     if(sameGymOrigin(documentUrl.current,startUrl))webViewRef.current?.injectJavaScript(nativeShellStyleScript(false,startUrl));
     refreshSequence.current++; generation.current++;
@@ -52,6 +74,9 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
     return true;
   }, [clear,startUrl,webViewRef]);
   const refresh = useCallback(async (autoOpen = false) => {
+    // Signup and recovery are public forms. A guest context request would return
+    // 401 and replace the form with Login before the visitor can complete it.
+    if(authPageKind(documentUrl.current,startUrl))return;
     const revision = ++refreshSequence.current;
     if (!dataRef.current && isClientDashboard(documentUrl.current,startUrl)) setBootstrapState('loading');
     try {
@@ -72,6 +97,10 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
   const onMessage = useCallback((nativeEvent) => {
     let message;
     try { message = JSON.parse(nativeEvent.data); } catch { return false; }
+    if(message?.type===NATIVE_AUTH_READY){
+      if(sameGymOrigin(nativeEvent.url,startUrl)&&message.documentUrl===nativeEvent.url)onAuthPageReady(message.documentUrl);
+      return true;
+    }
     if (message?.type !== NATIVE_GYM_MESSAGE) return false;
     if (!sameGymOrigin(nativeEvent.url || documentUrl.current, startUrl)) return true;
     const item = pending.current.get(message.id);
@@ -96,10 +125,11 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
       item.reject(failure);
     }
     return true;
-  }, [startUrl, clear, webViewRef]);
+  }, [startUrl, clear, webViewRef,onAuthPageReady]);
   const onNavigation = useCallback((url) => {
     documentUrl.current = url || '';
     if (!isClientDashboard(url,startUrl)) setBootstrapState('idle');
+    else if(!dataRef.current){setBootstrapState('loading');setBootstrapError('');}
     if(sameGymOrigin(url,startUrl)){
       const pathname=new URL(url).pathname.replace(/\/$/,'');
       setWebSection(Object.keys(WEB_ROUTES).find(key=>WEB_ROUTES[key]===pathname||pathname.startsWith(WEB_ROUTES[key]+'/'))||'bookings');
@@ -108,31 +138,39 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
     generation.current++; refreshSequence.current++;
     pending.current.forEach(item => { clearTimeout(item.timeout); item.reject(new Error('navigating')); });
     pending.current.clear();
-    if (!sameGymOrigin(url, startUrl) || /\/(?:login|site\/login|site\/logout|logout)(?:[/?#]|$)/.test(url || '')) clear();
+    if (!sameGymOrigin(url, startUrl) || authPageKind(url,startUrl) || /\/(?:site\/logout|logout)(?:[/?#]|$)/.test(url || '')) clear();
   }, [startUrl, clear, changeScreen]);
   const onLoadEnd = useCallback((event) => {
     const url = event?.nativeEvent?.url || documentUrl.current;
     documentUrl.current = url;
     if (!sameGymOrigin(url, startUrl)) return;
-    if (/\/(?:login|site\/login|site\/logout|logout)(?:[/?#]|$)/.test(url)) {
+    if(webTarget&&new URL(url).pathname.replace(/\/index\/?$|\/$/,'')===new URL(webTarget).pathname.replace(/\/$/,''))setWebTarget(null);
+    const authKind=authPageKind(url,startUrl);
+    if (authKind || /\/(?:site\/logout|logout)(?:[/?#]|$)/.test(url)) {
+      if (authKind==='login') onAuthPageReady(url);
       webViewRef.current?.injectJavaScript(nativeShellStyleScript(false,startUrl));return;
     }
     // Keep shared classes and notification details visible in the web booking flow.
     const target = new URL(url);
     // The company's root is its login page. Wait for the authenticated redirect
     // instead of treating the initial login document as a failed client session.
-    if (target.pathname === '/') return;
+    if (target.pathname === '/') {onAuthPageReady(url);return;}
+    // Admin pages use their existing protected dashboard endpoints through useNativeAdmin.
+    if (/^\/dashboard-gym(?:\/index)?\/?$/.test(target.pathname)) return;
     const dashboard = /^\/dashboard-gym(?:-client)?(?:\/index)?\/?$/.test(target.pathname);
     const detail = target.searchParams.has('schedule_id') || target.searchParams.has('_push_open');
     if (detail) changeScreen('web');
     refresh(dashboard && !detail && !authenticated.current);
-  }, [startUrl, refresh, changeScreen, webViewRef]);
+  }, [startUrl, refresh, changeScreen, webViewRef,onAuthPageReady,webTarget]);
   const openWeb = useCallback((route,params={}) => {
     if (!WEB_ROUTES[route]) return;
     setWebSection(route);
     changeScreen('web');
     const target=route==='notifications'&&Number.isSafeInteger(params.id)&&params.id>0?WEB_ROUTES[route]+'/view?id='+params.id:WEB_ROUTES[route];
-    const url=new URL(target, startUrl).href;
+    let invitation=null;
+    try{if(route==='bookings'&&typeof params.classUrl==='string')invitation=classLinkTarget(new URL(params.classUrl,startUrl).href,startUrl);}catch{}
+    const url=invitation||new URL(target, startUrl).href;
+    setWebTarget(route==='bookings'?null:url);
     if(webViewRef.current && sameGymOrigin(documentUrl.current,startUrl)) {
       webViewRef.current.injectJavaScript('location.assign('+JSON.stringify(url)+');true;');
     } else setWebViewUrl(url);
@@ -151,26 +189,32 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
   }, [busy, accept, request, refresh]);
   const logout = useCallback(async () => {
     if(busy)return;
-    setBusy(true);
+    setBusy(true);beginAuthTransition();
     try {
       try{await request('logout');}catch(failure){if(failure.message!=='signedOut')throw failure;}
       clear();
-      if(webViewRef.current&&sameGymOrigin(documentUrl.current,startUrl)){
-        webViewRef.current.injectJavaScript('location.replace('+JSON.stringify(startUrl)+');true;');
-      }else setWebViewUrl(startUrl);
+      const loginUrl=new URL('/login',startUrl);loginUrl.searchParams.set('_native_login',String(++authAttempt.current));
+      setWebViewUrl(loginUrl.href);
+      // The new WebView and removal of the old overlay commit together.
+      // Logout is confirmed; do not keep sign-in behind a second loading gate.
+      finishAuthTransition();
+    }catch(failure){finishAuthTransition();throw failure;
     }finally{if(mounted.current)setBusy(false);}
-  },[busy,request,clear,startUrl,setWebViewUrl,webViewRef]);
+  },[busy,request,clear,startUrl,setWebViewUrl,beginAuthTransition,finishAuthTransition]);
   const select = useCallback((next) => {
+    setWebTarget(null);
     changeScreen(next);
     // Profile edits may save with AJAX without a WebView load event.
     if (next === 'home' || next === 'pass') refresh();
   }, [changeScreen,refresh]);
+  const showBookings=useCallback(()=>{setWebTarget(null);setWebSection('bookings');changeScreen('web');},[changeScreen]);
   const signIn = useCallback(() => {
+    beginAuthTransition();
     clear();
-    const url=new URL('/login',startUrl).href;
-    if(webViewRef.current&&sameGymOrigin(documentUrl.current,startUrl))webViewRef.current.injectJavaScript('location.replace('+JSON.stringify(url)+');true;');
-    else setWebViewUrl(url);
-  }, [clear,startUrl,webViewRef,setWebViewUrl]);
+    const url=new URL('/login',startUrl);url.searchParams.set('_native_login',String(++authAttempt.current));
+    setWebViewUrl(url.href);
+    finishAuthTransition();
+  }, [clear,startUrl,setWebViewUrl,beginAuthTransition,finishAuthTransition]);
   const setLanguage = useCallback(async (language) => {
     if (busy || !['en','pt'].includes(language) || language === dataRef.current?.language) return;
     setBusy(true); setError('');
@@ -178,11 +222,11 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
       const next = await request('language', {language});
       if (!mounted.current || !accept(next)) return;
       // A web page needs new translated HTML; native views update from the DTO.
-      if (screenRef.current === 'web' && sameGymOrigin(documentUrl.current,startUrl)) {
+      if (screenRef.current === 'web' && webSection !== 'bookings' && sameGymOrigin(documentUrl.current,startUrl)) {
         webViewRef.current?.injectJavaScript('location.reload();true;');
       }
     } finally { if (mounted.current) setBusy(false); }
-  }, [busy,request,accept,startUrl,webViewRef]);
+  }, [busy,request,accept,startUrl,webViewRef,webSection]);
   useEffect(() => {
     mounted.current = true;
     const listener = AppState.addEventListener('change', state => {
@@ -191,11 +235,13 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
     const received=Notifications.addNotificationReceivedListener(()=>{if(dataRef.current)refresh();});
     return () => {
       mounted.current = false; listener.remove();received.remove();
+      clearTimeout(authTimer.current);
       pending.current.forEach(item => { clearTimeout(item.timeout); item.reject(new Error('navigating')); });
       pending.current.clear();
     };
   }, [refresh,startUrl]);
-  return {data, screen, webSection, busy, error, request, refresh, onMessage, onNavigation, onLoadEnd, openWeb,
-    injectedScript:nativeShellStyleScript(!!data,startUrl,data?.company.color),
-    bootstrapState,bootstrapError,signIn,logout,select,setLanguage, checkin: () => mutate('checkin'), checkout: () => mutate('checkout', {id: data?.session?.id})};
+  return {data, screen, webSection, webTarget, busy, error, request, refresh, onMessage, onNavigation, onLoadEnd, openWeb,showBookings,
+    suspendForAdmin:clear,
+    injectedScript:nativeShellStyleScript(!!data,startUrl,data?.company.color,true)+authPageReadyScript(startUrl),
+    bootstrapState,bootstrapError,authTransition,authTransitionError,onAuthPageReady,onAuthLoadError,signIn,logout,select,setLanguage, checkin: () => mutate('checkin'), checkout: () => mutate('checkout', {id: data?.session?.id})};
 }

@@ -3,10 +3,8 @@ const { withEntitlementsPlist, withInfoPlist, withAndroidManifest, withGradlePro
 module.exports = function withHealthTools(config) {
   config = withEntitlementsPlist(config, value => { value.modResults['com.apple.developer.healthkit'] = true; return value; });
   config = withInfoPlist(config, value => {
-    value.modResults.NSHealthShareUsageDescription = 'Special Calendar reads the workouts and daily steps you allow, to show your fitness history and dashboard. Sync imports these records into your selected company account.';
-    // Apple's static HealthKit validation also requires the update purpose key.
-    // Authorization remains read-only (toShare: [] in the native module).
-    value.modResults.NSHealthUpdateUsageDescription = 'Special Calendar uses Apple Health to display the workouts and daily steps you choose to share in your fitness dashboard. This version does not write or change Apple Health records.';
+    value.modResults.NSHealthShareUsageDescription = `${config.name || 'This app'} reads the workouts and daily steps you allow, to show your fitness history and dashboard. Sync imports these records into your selected company account.`;
+    value.modResults.NSHealthUpdateUsageDescription = `${config.name || 'This app'} saves completed timer workouts to Apple Health when you choose Save to Apple Health. No calories or distance are estimated.`;
     return value;
   });
   config = withGradleProperties(config, value => {

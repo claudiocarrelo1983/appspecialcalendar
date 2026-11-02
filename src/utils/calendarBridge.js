@@ -1,5 +1,11 @@
 export const CALENDAR_MESSAGE_TYPE = 'gym.calendar.create';
 
+// A notification/page load is not permission to create a phone calendar event.
+export function isUserCalendarAction(message,now=Date.now()){
+  return message?.type===CALENDAR_MESSAGE_TYPE&&message.version===1&&message.userInitiated===true
+    &&Number.isFinite(message.interactionAt)&&message.interactionAt<=now&&now-message.interactionAt<=30000;
+}
+
 export function trustedCalendarOrigin(url, startUrl) {
   try {
     const origin = new URL(url).origin;

@@ -9,3 +9,64 @@ npx eas-cli@latest build --platform ios --profile production --auto-submit-with-
 
 The explicit demo/ftx profiles remain available for compatibility.
 After changing shared functionality, apply the same source changes to the other folder.
+
+Native admin preview (adminui1-branding1):
+Dashboard > Classes switches to a native class schedule without loading another web page.
+Manage Class List opens a native roster using the existing authorized admin endpoints.
+Attendance changes update rows in place; search, add and remove preserve server rules.
+Existing dashboard, reports, client forms, membership screens and QR tools remain available on the website.
+Check-in/out forms restore their scroll position after a page reload.
+Launch removes the fixed page-load wait; network/server latency still applies.
+A new native build is required for the company-specific health permission branding.
+Verify with: node --test tests/*.test.cjs; npm run test:companies.
+Android bundle export was verified locally; test on a phone before store submission.
+
+
+Native admin frame (adminui2-branding1-camera1):
+Header, footer, account/menu sheets and create actions use React Native controls.
+Dashboard summary, class schedule/roster, client cards, class catalog and memberships render natively.
+List filters, pagination and cached tab navigation preserve the existing server routes and permissions.
+Simple create/update forms use native inputs and submit the existing protected form; uploads, rich widgets and repeaters keep the original editor inside the native frame.
+Native QR scanning uses expo-camera, validates the company/member route and releases the camera when closed or backgrounded.
+Native list positions survive check-in/out document reloads. Session/account changes clear private cached data.
+All tools remain reachable through the native menu and Open full page action.
+This runtime requires a new Android/iOS native build; a JavaScript-only update cannot add expo-camera.
+No server deployment is required for this admin interface. Existing authentication/permission denials still need server resolution.
+
+Native admin header revision (adminui3, clipboard1):
+The final loaded WebView URL is committed before native admin detection, including redirects.
+Language, notification read/unread switches, signup sharing, birthdays, menu, create sheet and company-code copying use native controls.
+The website header/footer are hidden only after the authenticated native frame acknowledges its snapshot.
+Notification updates observe only their own dropdown and preserve unsaved native form drafts.
+Membership filters initially remain visible, using native inputs/selects.
+A new native build is required for expo-clipboard. Device verification is still needed after installation.
+
+Current mobile admin layout (adminui4-mobile1):
+Admin navigation starts in a native loading/error screen and never automatically exposes the website when bootstrap fails.
+The mobile app bar shows company identity, administration role, notifications/menu and separate shortcut chips.
+Lists use native search rows, compact cards, selected bottom tabs and a dedicated native filter screen.
+The hidden authenticated transport is offscreen and cannot cover native header touch targets.
+Main native screens no longer offer a website view. Advanced editors are an explicit choice only for unsupported forms.
+Visual QA: node scripts/admin-mobile-preview.cjs --serve (local sample data, actual shared React Native components).
+The browser preview verifies layout and interactions; it is not verification of a signed-in physical Android device.
+
+Expo build-credit policy:
+Do not start cloud builds automatically. Validate locally with npm run check:local.
+This command runs all JavaScript tests, checks company profiles/source parity and exports Android/iOS bundles; it never calls EAS Build or publishes updates.
+Local source fixes after APK 21 preserve native tab selection during header refreshes and reload a failed server document on retry.
+These later source fixes are not installed automatically into APK 21.
+
+Free local native verification completed:
+Android ARM64 release compilation passed locally (775 tasks; 9m 44s), using the installed JDK/Android SDK.
+Command from android/: .\gradlew.bat :app:assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon --console=plain
+The local validation APK uses the development signing key; it is not an upgrade for the Expo-signed installed APK.
+No EAS cloud build or update was started. Signed-in physical-device checks remain.
+
+Android native startup fix after APK 22:
+The installed react-native-webview Android WebMessageListener passes sourceOrigin as onMessage.url, not the complete page URL.
+The old strict page-URL comparison discarded valid snapshots, leaving Administration on its timeout error screen.
+The bridge now includes the actual document URL and a native navigation generation ID; origin-only and full-URL transports are supported while stale and foreign-company messages remain rejected.
+The outer shell changes client/admin state only for accepted document messages and initializes clients with the actual document URL.
+Startup failures now expose a bounded reference code for diagnosis without cookies, tokens or account data.
+A regression test reproduces the original failure, and an integrated injected-script test verifies the Android-style handshake.
+These changes are local source changes until explicitly delivered in a new build/update. Do not start an EAS cloud build without the user's explicit request.

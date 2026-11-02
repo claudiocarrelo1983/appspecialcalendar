@@ -8,7 +8,7 @@ function files(dir, prefix = '') {
     return entry.isDirectory() ? files(path.join(dir, entry.name), relative) : [relative];
   });
 }
-const inputs = base => ['App.js', 'index.js', 'package-lock.json', ...['src', 'modules', 'plugins']
+const inputs = base => ['App.js', 'index.js', 'package-lock.json', ...['src', 'modules', 'plugins','native']
   .flatMap(dir => files(path.join(base, dir)).map(file => path.join(dir, file)))];
 const current = inputs(root), reference = inputs(other);
 const digest = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');

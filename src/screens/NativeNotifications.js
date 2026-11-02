@@ -29,7 +29,7 @@ export default function NativeNotifications({gym,t,color,visible,onClose,onUnrea
     }catch(failure){if(current===revision.current)setError(failure.message);}
     finally{if(current===revision.current)setChanging(null);}
   };
-  const open=(id)=>{onClose();gym.openWeb('notifications',id?{id}:{});};
+  const open=(row)=>{onClose();if(row.bookingUrl)gym.openWeb('bookings',{classUrl:row.bookingUrl});else gym.openWeb('notifications',row.id?{id:row.id}:{});};
   return <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
     <View style={s.overlay}><View style={s.panel}>
       <View style={s.heading}><View style={{flex:1,gap:4}}><Text heading style={s.title}>{t.notifications}</Text>
@@ -42,7 +42,7 @@ export default function NativeNotifications({gym,t,color,visible,onClose,onUnrea
         {!busy&&!error&&rows.length===0&&<View style={s.message}><Icon name="bell" color={color} size={32}/><Text style={s.company}>{t.noNotifications}</Text></View>}
         {rows.map(row=><View key={row.id} style={[s.row,!row.read&&{backgroundColor:brandSoft(color,.05)}]}>
           <View style={[s.icon,{backgroundColor:brandSoft(color)}]}><Icon name="bell" color={color} size={20}/></View>
-          <Pressable accessibilityRole="button" onPress={()=>open(row.id)} style={s.body}>
+          <Pressable accessibilityRole="button" onPress={()=>open(row)} style={s.body}>
             <Text style={s.noticeTitle}>{row.title}</Text><Text style={s.noticeBody}>{row.body}</Text>
             <Text style={s.date}>{new Date(row.createdAt).toLocaleString(gym.data.language==='pt'?'pt-PT':'en-GB',{timeZone:gym.data.timezone,dateStyle:'short',timeStyle:'short'})}</Text>
           </Pressable>
