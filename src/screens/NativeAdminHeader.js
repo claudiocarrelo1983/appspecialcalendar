@@ -30,7 +30,9 @@ export default function NativeAdminHeader({pages,t,color,onMenu,onHome,onBack,ba
   const title=panel==='language'?t.language:panel==='notifications'?t.notifications:t.birthdays;
   const language=header.language?.value?.split('-')[0]?.toUpperCase()||pages.document.language?.toUpperCase();
   const open=url=>{setPanel(null);if(url)pages.navigate(url);};
-  const share=()=>{if(header.share?.url)Share.share({message:header.share.url}).catch(()=>Alert.alert(t.share,t.error));};
+  // No public store listing is configured yet. Never share a website as the app.
+  const storeUrl=null;
+  const share=()=>{if(storeUrl)Share.share({message:storeUrl}).catch(()=>Alert.alert(t.share,t.error));};
   return <>
     <View testID="native-admin-header" style={s.appBar}>
     <View style={s.header}>
@@ -47,7 +49,7 @@ export default function NativeAdminHeader({pages,t,color,onMenu,onHome,onBack,ba
     <View style={s.shortcuts}>
       {header.language&&<HeaderButton style={s.shortcut} label={t.language} onPress={()=>setPanel('language')} disabled={pages.busy}>
         <Text style={s.shortcutText}>{language}</Text><View accessible={false} style={s.chevronBox}><View style={s.chevron}/></View></HeaderButton>}
-      {header.share&&<HeaderButton style={s.shortcut} label={t.share} onPress={share}><ShareIcon/><Text numberOfLines={1} style={s.shortcutText}>{t.shareShort}</Text></HeaderButton>}
+      {storeUrl&&<HeaderButton style={s.shortcut} label={t.share} onPress={share}><ShareIcon/><Text numberOfLines={1} style={s.shortcutText}>{t.shareShort}</Text></HeaderButton>}
       {header.birthdays&&<HeaderButton style={s.shortcut} label={t.birthdays} count={header.birthdays.rows.filter(row=>row.today===true).length} onPress={()=>setPanel('birthdays')}>
         <Icon name="gift" size={19} color={theme.muted}/><Text numberOfLines={1} style={s.shortcutText}>{t.birthdays}</Text></HeaderButton>}
     </View>

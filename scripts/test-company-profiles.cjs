@@ -17,7 +17,7 @@ try{
     assert.equal(c.ios.bundleIdentifier,result.package);checks++;
     assert.equal(c.extra.companyBrandColor,result.color);checks++;
     assert.equal(c.extra.companyDomain,new URL(result.url).hostname);checks++;
-    assert(c.runtimeVersion.includes('-nativeui2-timeralerts2'));checks++;
+    assert(c.runtimeVersion.includes('-nativeui2-timeralerts3'));checks++;
     assert(selected.channel.startsWith(name.endsWith('ftx')?'ftx-':'demo-'));checks++;
     const structure=JSON.stringify({main:JSON.parse(fs.readFileSync(path.join(root,'package.json'))).main,
       base:c.extra.sharedMobileBase,orientation:c.orientation,platforms:c.platforms,userInterfaceStyle:c.userInterfaceStyle,
@@ -35,7 +35,7 @@ try{
     assert.equal(extensions.length,1);checks++;
     assert.equal(extensions[0].bundleIdentifier,c.ios.bundleIdentifier+'.WorkoutProgress');checks++;
     extensions[0].bundleIdentifier='company.WorkoutProgress';
-    assert(c.runtimeVersion.endsWith('-fitness3-auth1'));checks++;
+    assert(c.runtimeVersion.endsWith('-fitness4-healthauto1-auth1'));checks++;
     full.plugins=full.plugins.map(plugin=>{
       if(Array.isArray(plugin)&&plugin[0]==='expo-camera'){
         assert(plugin[1].cameraPermission.includes(result.name));checks++;

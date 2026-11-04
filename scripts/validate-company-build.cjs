@@ -29,6 +29,12 @@ function validate(env=process.env){
   const app=selectDomain(env),hash=crypto.createHash('sha256');
   const pkg=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));
   if(pkg.main!=='index.js')throw Error('All company builds must use the shared index.js entry point.');
+  // Native projects skip Expo prebuild; missing raw sounds silently fall back to default.
+  const raw=path.join(root,'android/app/src/main/res/raw');
+  if(fs.existsSync(raw))for(const phase of ['work','rest','finished']){
+    const name='gym_timer_'+phase+'.wav',source=fs.readFileSync(path.join(root,'src/assets/audio',name)),target=path.join(raw,name);
+    if(!fs.existsSync(target)||!fs.readFileSync(target).equals(source))throw Error('Missing/outdated native timer sound: '+target+'. Sync native timer sound resources before building.');
+  }
   for(const file of files){hash.update(file+'\0');hash.update(fs.readFileSync(path.join(root,file)));}
   for(const file of [app.icon,app.splash,app.androidGoogleServicesFile]){
     if(!fs.existsSync(path.join(root,file)))throw Error('Missing company asset: '+file);

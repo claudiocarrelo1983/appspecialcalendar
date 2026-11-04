@@ -35,7 +35,7 @@ function SessionClock({session}) {
   const seconds = session?.inGym ? base.current.seconds+Math.max(0,now-base.current.at)/1000 : session?.elapsedSeconds;
   return <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} style={[s.metric,{color:theme.success}]}>{formatDuration(seconds)}</Text>;
 }
-function NativePass({data,t,color}) {
+export function NativePass({data,t,color,offline=false}) {
   const {width}=useWindowDimensions();
   const pass=data.pass, runs=useMemo(()=>qrRuns(pass?.matrix),[pass?.matrix]);
   if(!pass)return <Card frameless><Text style={s.muted}>{t.noPass}</Text></Card>;
@@ -44,7 +44,7 @@ function NativePass({data,t,color}) {
   return <Card title={t.pass} icon="pass" color={color} frameless>
     <View style={s.passHeading}><Text heading style={s.name}>{data.client.name}</Text>
       <Text style={s.muted}>{data.company.name} · {t.member} {data.client.number}</Text>
-      <View style={s.badge}><Text style={s.badgeText}>{t[pass.status==='active'?'active':'upcomingPass']}</Text></View>
+      {!offline&&<View style={s.badge}><Text style={s.badgeText}>{t[pass.status==='active'?'active':'upcomingPass']}</Text></View>}
       <Text style={s.cardTitle}>{pass.title}</Text></View>
     <View accessible accessibilityLabel={t.pass+' · '+t.member+' '+data.client.number}
       style={[s.qr,{width:cell*units,height:cell*units}]}>

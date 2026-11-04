@@ -24,6 +24,16 @@ export function adminMemberTarget(value, config, base) {
   } catch { return null; }
 }
 
+export function adminMemberCheckinTarget(value,config,base){
+  const member=adminMemberTarget(value,config,base);
+  if(!member)return null;
+  if(config.checkinAllowed===false)return member;
+  const target=new URL('/gym-checkin/index',base);
+  target.searchParams.set('member_id',new URL(member).searchParams.get('id'));
+  target.searchParams.set('company_code',config.companyCode);
+  return target.href;
+}
+
 const SOURCE = String.raw`function(c) {
   if (location.origin !== c.origin || !window.ReactNativeWebView) return;
   if(c.action==='install')window.__scAdminPagesDocumentId=c.documentId;
@@ -101,21 +111,45 @@ const SOURCE = String.raw`function(c) {
     page.submitting = live && window.__scAdminFormSubmitting === true;
     return page;
   }
+  function documentLevel(normalized=true) {
+    const top=document.querySelector('#page-topbar');
+    const explicit=top?.getAttribute('data-user-level')||top?.querySelector('#page-header-user-dropdown')?.getAttribute('data-user-level');
+    if(explicit)return normalized?String(explicit).trim().toLowerCase():String(explicit).trim();
+    // Older servers expose the role only in the translated sidebar summary.
+    const row=all(document,'.vertical-menu .text-2').find(el=>{
+      const label=text(el.querySelector('span')).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\s:]/g,'').toLowerCase();
+      return ['level','nivel','role'].includes(label);
+    });
+    const value=text(row?.querySelector('span:nth-of-type(2)'));
+    return normalized?value.toLowerCase():value;
+  }
+  function clientDocument() {
+    const level=documentLevel();
+    return ['client','cliente','member','socio','sócio'].includes(level)
+      || /^\/dashboard-gym-client(?:\/|$)/.test(location.pathname)
+      || (!level&&!!document.querySelector('.mobile-bottom-nav a[href*="dashboard-gym-client"]'));
+  }
   function gymAdminDocument() {
     const top=document.querySelector('#page-topbar');
     if(!top||/^\/(?:$|(?:site\/)?(?:login|logout)(?:-mobile)?(?:\/|$)|form-signup(?:\/|$))/.test(location.pathname))return false;
-    const level=String(top.querySelector('#page-header-user-dropdown')?.getAttribute('data-user-level')||'').trim().toLowerCase();
-    const client=level==='client'||level==='cliente'||!!document.querySelector('.mobile-bottom-nav a[href*="dashboard-gym-client"]');
-    if(client)return false;
+    if(clientDocument())return false;
     const gymHome=links(document,'.mobile-bottom-nav a[href],.vertical-menu a[href]',location.href)
       .some(item=>/^\/dashboard-gym(?:\/index)?\/?$/.test(new URL(item.url).pathname));
     const signedIn=/^[a-f0-9]{64}$/.test(top.getAttribute('data-fitness-account')||'')
       && !!top.querySelector('#page-header-user-dropdown');
-    return gymHome||signedIn;
+    const staff=['admin','administrator','administrador','team','equipa','equipe'].includes(documentLevel())
+      && !!top.querySelector('#page-header-user-dropdown');
+    return gymHome||signedIn||staff;
   }
   function publishDocument() {
-    if (!gymAdminDocument()) {send({event:'document',active:false,
-      client:!!document.querySelector('.mobile-bottom-nav a[href*="dashboard-gym-client"]')||['client','cliente'].includes(String(document.querySelector('#page-header-user-dropdown')?.getAttribute('data-user-level')||'').toLowerCase())});return;}
+    if (!gymAdminDocument()) {
+      // The early WebView injection can run before the server header is parsed.
+      // DOMContentLoaded will publish the complete document; do not reject it yet.
+      if(document.readyState==='loading')return;
+      const top=document.querySelector('#page-topbar');
+      const reason=clientDocument()?'CLIENT_PAGE':!top?'HEADER_MISSING':!top.querySelector('#page-header-user-dropdown')?'ACCOUNT_CONTROL_MISSING':'ROLE_UNRECOGNIZED';
+      send({event:'document',active:false,bridgeVersion:2,reason,client:clientDocument()});return;
+    }
     // A settings/support page may render the generic footer. Rebuild only the
     // existing gym tabs from links the current server document permits.
     const navigation=links(document,'.mobile-bottom-nav > a[href],.vertical-menu a[href]',location.href);
@@ -123,6 +157,17 @@ const SOURCE = String.raw`function(c) {
       const item=navigation.find(item=>new URL(item.url).pathname.replace(/\/index\/?$|\/$/g,'')==='/'+route);
       return item?[item]:[];
     });
+    // Restricted Team menus can grant Attendance/Waivers instead of the admin's
+    // four default tabs. Fill free slots only from actual permitted sidebar links.
+    if(['team','equipa','equipe'].includes(documentLevel())&&footer.length<4){
+      const route=url=>new URL(url).pathname.replace(/\/index\/?$|\/$/g,'');
+      const used=new Set(footer.map(item=>route(item.url)));
+      for(const item of links(document,'.vertical-menu a[href]',location.href)){
+        const path=route(item.url);
+        if(used.has(path)||!/^\/[a-z][a-z0-9-]*$/.test(path)||['/profile','/preferences','/dashboard','/login','/logout'].includes(path))continue;
+        footer.push(item);used.add(path);if(footer.length===4)break;
+      }
+    }
     const page=snapshot(document,location.href,true);
     const register=el=>{const id=window.__scAdminPageRevision+':'+window.__scAdminPageControls.size;window.__scAdminPageControls.set(id,el);return id;};
     const top=document.querySelector('#page-topbar');
@@ -177,12 +222,7 @@ const SOURCE = String.raw`function(c) {
     // Extract only the known public signup URL. Never execute onclick text in native code.
     const shareMatch=share?.getAttribute('onclick')?.match(/window\.open\(['"]([^'"]+)['"]/);
     const shareUrl=shareMatch?safe(shareMatch[1],location.href):null;
-    const levelRow=all(document,'.vertical-menu .text-2').find(el=>{
-      const label=text(el.querySelector('span')).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\s:]/g,'').toLowerCase();
-      return ['level','nivel','role'].includes(label);
-    });
-    const levelValue=top.querySelector('#page-header-user-dropdown[data-user-level]')?.getAttribute('data-user-level')
-      ||text(levelRow?.querySelector('span:nth-of-type(2)'));
+    const levelValue=documentLevel(false);
     const header={
       accountKey:/^[a-f0-9]{64}$/.test(top.getAttribute('data-fitness-account')||'')?top.getAttribute('data-fitness-account'):null,
       logoUrl:safe(top.getAttribute('data-company-mobile-logo'),location.href),
@@ -302,7 +342,7 @@ export function validAdminPage(page, base) {
 }
 export function adminPageLabels(language) {
   return language === 'pt' ? {menu:'Menu',more:'Mais',create:'Criar',search:'Procurar',filter:'Filtrar',apply:'Aplicar',
-    fullPage:'Abrir página completa',native:'Voltar à aplicação',scan:'Ler QR do sócio',camera:'Permitir câmara',cameraDenied:'Permita o acesso à câmara nas definições.',
+    fullPage:'Abrir página completa',native:'Voltar à aplicação',scan:'Ler código QR',camera:'Permitir câmara',cameraDenied:'Permita o acesso à câmara nas definições.',
     settings:'Abrir definições',invalidQr:'Este QR não pertence a um sócio deste clube.',scanAgain:'Ler novamente',save:'Guardar',
     empty:'Não há resultados.',loading:'A carregar…',error:'Não foi possível carregar. Tente novamente.',confirm:'Confirmar ação?',account:'Conta',
     details:'Detalhes',dashboard:'Resumo',schedule:'Horário de aulas',cancel:'Cancelar',close:'Fechar',refresh:'Atualizar',back:'Voltar',
@@ -311,7 +351,7 @@ export function adminPageLabels(language) {
     adminLabel:'Administração',overview:'O clube hoje',records:'registos',loadingApp:'A preparar a administração…',setupError:'Não foi possível abrir esta área.',
     happyBirthday:'Parabéns!',happyBirthdayBody:'Desejamos-lhe um excelente dia de aniversário!',signIn:'Iniciar sessão',logout:'Terminar sessão',openEditor:'Abrir editor',editorInfo:'Este formulário tem ferramentas adicionais. Abra o editor para continuar.',shareShort:'Partilhar',reference:'Referência'}
     : {menu:'Menu',more:'More',create:'Create',search:'Search',filter:'Filter',apply:'Apply',fullPage:'Open full page',native:'Back to app',
-      scan:'Scan member QR',camera:'Allow camera',cameraDenied:'Allow camera access in Settings.',settings:'Open Settings',
+      scan:'Scan QR code',camera:'Allow camera',cameraDenied:'Allow camera access in Settings.',settings:'Open Settings',
       invalidQr:'This QR does not belong to a member of this club.',scanAgain:'Scan again',save:'Save',empty:'No results.',loading:'Loading…',
       error:'Could not load. Please try again.',confirm:'Confirm action?',account:'Account',details:'Details',dashboard:'Dashboard',
       schedule:'Class schedule',cancel:'Cancel',close:'Close',refresh:'Refresh',back:'Back',

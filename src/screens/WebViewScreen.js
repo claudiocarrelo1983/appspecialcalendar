@@ -17,6 +17,7 @@ import useNativeGym from '../utils/useNativeGym';
 import useWorkoutSync from '../utils/useWorkoutSync';
 import * as SecureStore from 'expo-secure-store';
 import NativeOfflineWorkouts from './NativeOfflineWorkouts';
+import offlinePass from '../utils/offlinePass';
 import useNativeAuth from '../utils/useNativeAuth';
 import NativeAuthScreen from './NativeAuthScreen';
 import {authLinkTarget} from '../utils/nativeAuthCore';
@@ -352,8 +353,11 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
   const workoutSync=useWorkoutSync(webViewRef,START_URL,fitnessAccountKey);
   const previousFitnessAccount=useRef(null);
   useEffect(()=>{
+    if(nativeGym.data?.accountKey)offlinePass.save(nativeGym.data,new URL(START_URL).origin).catch(()=>{});
+  },[nativeGym.data]);
+  useEffect(()=>{
     if(/^[a-f0-9]{64}$/.test(fitnessAccountKey||''))SecureStore.setItemAsync('fitness-last-account',fitnessAccountKey).catch(()=>{});
-    else if(previousFitnessAccount.current)SecureStore.deleteItemAsync('fitness-last-account').catch(()=>{});
+    else if(previousFitnessAccount.current){SecureStore.deleteItemAsync('fitness-last-account').catch(()=>{});offlinePass.remove(previousFitnessAccount.current).catch(()=>{});}
     previousFitnessAccount.current=fitnessAccountKey;
   },[fitnessAccountKey]);
   const companyColor = useCompanyColor(COMPANY_APP.pagecode,
@@ -595,7 +599,7 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
         <Pressable accessibilityRole="button" onPress={recovery.retry} style={[styles.retry,{backgroundColor:companyColor}]}><Text style={styles.retryText}>{recoveryLabels.retry}</Text></Pressable>
       </>}
     </View>}
-    <NativeOfflineWorkouts available={!fitnessAccountKey&&(nativeGym.bootstrapState==='failed'||recovery.status==='failed')} t={recoveryLabels} color={companyColor}/>
+    <NativeOfflineWorkouts base={START_URL} available={!fitnessAccountKey&&(nativeGym.bootstrapState==='failed'||recovery.status==='failed')} t={recoveryLabels} color={companyColor}/>
   </View>
 );
 }

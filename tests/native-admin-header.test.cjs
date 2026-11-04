@@ -42,8 +42,8 @@ test('native header exposes every screenshot action and uses native notification
     birthdays:{rows:[]},share:{url:'https://club.example/form-signup'}}},change:(...args)=>changes.push(args)};
   const props={pages,t,color:'#198754',onMenu(){},onHome(){}};
   let tree=nodes(testHarness.render(Header,props));
-  for(const label of ['language','notifications','share','birthdays','menu'])assert.ok(tree.some(node=>node.props.label===label),label);
-  tree.find(node=>node.props.label==='share').props.onPress();assert.equal(shared[0].message,'https://club.example/form-signup');
+  for(const label of ['language','notifications','birthdays','menu'])assert.ok(tree.some(node=>node.props.label===label),label);
+  assert.ok(!tree.some(node=>node.props.label==='share'));assert.equal(shared.length,0);
   tree.find(node=>node.props.label==='notifications').props.onPress();tree=nodes(testHarness.render(Header,props));
   assert.ok(tree.some(node=>node.type==='Modal'&&node.props.visible));
   const toggle=tree.find(node=>node.type==='Switch');toggle.props.onValueChange(true);
@@ -141,5 +141,37 @@ test('root settings keeps the main header while nested settings retains back nav
    const page={url:'https://club.example/'+route,kind:'web'},pages={document:{page,header:{},footer:[],menuTree:[],accountActions:[]},page,startup:'active'};
    const header=nodes(h.render(h.exports.default,{pages,admin:{screen:'web'}})).find(node=>node.type==='Header');
    assert.equal(header.props.backVisible,expected,route);
+ }
+});
+
+test('dashboard never inherits the classes back arrow during a screen transition',()=>{
+ const h=harness('NativeAdminFrame.js',{'../utils/nativeAdminPages':{adminPageLabels:()=>({})}});
+ for(const route of ['dashboard-gym','dashboard-gym/index?date=2026-11-04'])for(const kind of ['web','dashboard']){
+  const page={url:'https://club.example/'+route,kind},pages={document:{page,header:{},footer:[],menuTree:[],accountActions:[]},page,startup:'active',busy:true};
+  const tree=nodes(h.render(h.exports.default,{pages,admin:{screen:'classes'}}));
+  assert.equal(tree.find(node=>node.type==='Header').props.backVisible,false);
+  assert.ok(tree.some(node=>node.props.testID==='native-admin-loading'));
+ }
+});
+
+test('Team central plus exposes only Scan QR code, outside the main menu, when permitted',()=>{
+ for(const allowed of [true,false])for(const count of [2,3,4]){
+  const h=harness('NativeAdminFrame.js',{'../utils/nativeAdminPages':{adminPageLabels:()=>({scan:'Scan QR code',menu:'Menu',more:'More'})}});
+  const page={url:'https://club.example/dashboard-gym',kind:'web'},scanner=allowed?{companyCode:'club',origins:['https://club.example']}:null;
+  const footer=Array.from({length:count},(_,i)=>({url:'https://club.example/page-'+i,label:'Page '+i}));
+  const props={pages:{document:{page,scanner,header:{user:{level:'team'}},footer,menuTree:[],menu:[],create:[{label:'Create membership',url:'https://club.example/memberships/create'}],accountActions:[]},page,startup:'active'},admin:{screen:'web'}};
+  let tree=nodes(h.render(h.exports.default,props));tree.find(node=>node.type==='Header').props.onMenu();
+  tree=nodes(h.render(h.exports.default,props));assert.ok(!tree.some(node=>node.props.label==='Scan QR code'),'Scan is not a main-menu row');
+  assert.equal(tree.filter(node=>node.props.accessibilityRole==='tab').length,count);
+  assert.equal(tree.some(node=>node.props.accessibilityLabel==='More'),count<4);
+  const plus=tree.filter(node=>node.props.testID==='native-team-qr-plus');assert.equal(plus.length,allowed?1:0);
+  if(allowed){
+   plus[0].props.onPress();tree=nodes(h.render(h.exports.default,props));
+   const actions=tree.filter(node=>node.props.label&&typeof node.props.onPress==='function');
+   assert.equal(actions.filter(node=>node.props.label==='Scan QR code').length,1);
+   assert.ok(!actions.some(node=>node.props.label==='Create membership'));
+   actions.find(node=>node.props.label==='Scan QR code').props.onPress();tree=nodes(h.render(h.exports.default,props));
+   assert.equal(tree.find(node=>node.type==='Scanner').props.visible,true);
+  }
  }
 });

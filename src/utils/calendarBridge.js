@@ -48,9 +48,15 @@ export function calendarEventFromMessage(message) {
   }
   const url = new URL(event.url);
   if (!['http:', 'https:'].includes(url.protocol)) throw new Error('Invalid event URL');
+  // Preserve the UTC instant. Calendar apps display it in the phone's timezone;
+  // include the club's wall-clock time so travelling members can distinguish it.
+  const timeZone=event.timeZone||'Europe/Lisbon';
+  try{new Intl.DateTimeFormat('en',{timeZone}).format(startDate);}catch{throw Error('Invalid calendar timezone');}
+  const pt=String(message.language||'').startsWith('pt');
+  const clubTime=new Intl.DateTimeFormat(pt?'pt-PT':'en-GB',{timeZone,dateStyle:'medium',timeStyle:'short'}).format(startDate);
   return {
     title: event.title.trim(), startDate, endDate,
-    location: event.location, notes: event.notes, url: event.url,
-    timeZone: 'Europe/Lisbon',
+    location: event.location, notes: event.notes+'\n\n'+(pt?'Hora do clube: ':'Club time: ')+clubTime+' ('+timeZone+')', url: event.url,
+    timeZone,
   };
 }

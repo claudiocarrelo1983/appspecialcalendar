@@ -122,7 +122,10 @@ export default function useNativeAdminPages(ref, base, navigateWeb) {
       if (message.page && !validAdminPage(message.page,base)) return true;
       if(!message.active){
         const candidate=isAdminRoute(source.current);clear();
-        if(candidate){setStartup('failed');setError('native_setup');setDiagnostic('ADMIN_DOCUMENT_UNAVAILABLE');return true;}
+        if(candidate){
+          const reason=['HEADER_MISSING','ACCOUNT_CONTROL_MISSING','ROLE_UNRECOGNIZED','CLIENT_PAGE'].includes(message.reason)?message.reason:'UNKNOWN';
+          setStartup('failed');setError('native_setup');setDiagnostic('ADMIN_DOCUMENT_UNAVAILABLE_V2_'+reason);return true;
+        }
         return {documentRole:message.client===true?'client':'public',documentUrl:message.documentUrl};
       }
       if(!validAdminPage(message.page,base)||!Array.isArray(message.footer)||!Array.isArray(message.menu))return true;

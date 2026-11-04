@@ -3,7 +3,7 @@ import { AppState, Linking, Modal, Pressable, StyleSheet, View } from 'react-nat
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Text } from './NativeGymTypography';
-import { adminMemberTarget } from '../utils/nativeAdminPages';
+import { adminMemberCheckinTarget } from '../utils/nativeAdminPages';
 
 export default function NativeAdminScanner({ visible, config, base, t, onClose, onOpen, color }) {
   const [permission,requestPermission]=useCameraPermissions(), [error,setError]=useState(''), [foreground,setForeground]=useState(AppState.currentState==='active');
@@ -12,7 +12,7 @@ export default function NativeAdminScanner({ visible, config, base, t, onClose, 
   useEffect(()=>{const sub=AppState.addEventListener('change',state=>setForeground(state==='active'));return()=>sub.remove();},[]);
   const scan=({data})=>{
     if(locked.current)return;
-    const target=adminMemberTarget(data,config,base);
+    const target=adminMemberCheckinTarget(data,config,base);
     if(!target){setError(t.invalidQr);return;}
     locked.current=true;onClose();onOpen(target);
   };

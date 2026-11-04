@@ -5,6 +5,7 @@ import { Platform, StatusBar as RNStatusBar, StyleSheet, View } from 'react-nati
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import AnimatedSplashScreen from './src/screens/AnimatedSplashScreen';
 import WebViewScreen from './src/screens/WebViewScreen';
+import NativeFontProvider from './src/screens/NativeFontProvider';
 
 // Keep the native splash up until our JS splash (same look) is mounted.
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -61,7 +62,7 @@ function AppContent() {
 export default function App() {
   return (
     <SafeAreaProvider>
-      <AppContent />
+      <NativeFontProvider><AppContent /></NativeFontProvider>
     </SafeAreaProvider>
   );
 }

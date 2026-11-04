@@ -23,6 +23,7 @@ const chrome=`<header id="page-topbar"><a href="/profile">Profile</a><a href="/s
 function browser(html='',url=base+'clients-list',prefix=chrome){
   const dom=new JSDOM(`<!doctype html><html lang="pt"><head><meta name="csrf-token" content="private-csrf"><title>Club</title></head><body>${prefix}<main class="main-content"><div class="page-content">${html}</div></main></body></html>`,{url,runScripts:'outside-only'});
   const messages=[],w=dom.window;w.ReactNativeWebView={postMessage:value=>messages.push(JSON.parse(value))};
+  Object.defineProperty(w.document,'readyState',{configurable:true,get:()=> 'complete'});
   w.AbortController=AbortController;w.setTimeout=()=>1;w.clearTimeout=()=>{};
   const run=(action,params)=>w.eval(core.adminPageScript(base,action,params));run('install');
   return {dom,w,messages,run,document:()=>messages.filter(m=>m.event==='document').at(-1)};
@@ -385,6 +386,24 @@ test('admin navigation owns a native loading/error screen instead of falling bac
   h.render().onNavigation(base+'login');assert.equal(h.render().startup,'idle');assert.equal(h.render().isAdminRoute(base+'login'),false);
   h.render().onNavigation(base+'dashboard-gym-client');assert.equal(h.render().startup,'idle');
 });
+
+test('an incomplete Team document waits for its header before publishing startup failure',()=>{
+ const b=browser('',base+'dashboard-gym','');b.messages.length=0;
+ Object.defineProperty(b.w.document,'readyState',{configurable:true,get:()=> 'loading'});
+ b.run('install');assert.equal(b.messages.filter(row=>row.event==='document').length,0);
+ b.w.document.body.insertAdjacentHTML('afterbegin','<header id="page-topbar" data-user-level="team"><button id="page-header-user-dropdown">Coach</button></header>');
+ Object.defineProperty(b.w.document,'readyState',{configurable:true,get:()=> 'interactive'});
+ b.w.document.dispatchEvent(new b.w.Event('DOMContentLoaded'));
+ assert.equal(b.document().active,true);assert.equal(b.document().header.user.level,'team');b.dom.window.close();
+});
+
+test('startup failure reports a versioned non-sensitive reason without loosening access',()=>{
+ const b=browser('',base+'dashboard-gym','');const message=b.document();
+ assert.equal(message.active,false);assert.equal(message.reason,'HEADER_MISSING');assert.equal(message.bridgeVersion,2);
+ const h=hook();h.render().onNavigation(base+'dashboard-gym');h.send({event:'document',active:false,reason:'HEADER_MISSING'});
+ assert.equal(h.render().startup,'failed');assert.equal(h.render().diagnostic,'ADMIN_DOCUMENT_UNAVAILABLE_V2_HEADER_MISSING');
+ assert.ok(!JSON.stringify(message).includes('private-csrf'));h.unmount();b.dom.window.close();
+});
 test('confirmed administrator keeps native ownership on other permitted tools, until logout clears it',()=>{
   const h=hook();assert.equal(h.render().isAdminRoute(base+'gym-attendance'),true);
   h.render().onNavigation(base+'gym-attendance');assert.equal(h.render().startup,'loading');
@@ -473,6 +492,20 @@ const gymDefinition=require('./fixtures/gym-all.json');
 const gymMenuMarkup=items=>'<ul>'+items.map(item=>'<li><a'+(item.url==='null'?'':' href="'+new URL(item.url,base).pathname+'"')+'><span>'+item.title+'</span></a>'+gymMenuMarkup(item.submenu||[])+'</li>').join('')+'</ul>';
 const genericFooter='<div class="mobile-bottom-nav"><a href="/dashboard">Messages</a><div id="fabBtn">Menu</div><a href="/profile">Time clock</a></div>';
 const signedHeader='<header id="page-topbar" data-fitness-account="'+'a'.repeat(64)+'"><button id="page-header-user-dropdown" data-user-level="admin"><span>Admin</span></button></header>';
+
+test('Team footer fills all four permitted categories including alternatives to admin tabs',()=>{
+ const prefix=signedHeader.replace('data-user-level="admin"','data-user-level="team"')+
+  '<aside class="vertical-menu"><a href="/dashboard-gym">Dashboard</a><a href="/clients-list">Clients</a><a href="/gym-attendance">Attendance</a><a href="/waivers">Waivers</a><a href="/memberships" data-permission-blocked="1">Denied memberships</a><a href="/company/update">Edit company</a></aside>'+genericFooter;
+ const b=browser('',base+'dashboard-gym',prefix);
+ assert.deepEqual(Array.from(b.document().footer,item=>new URL(item.url).pathname),['/dashboard-gym','/clients-list','/gym-attendance','/waivers']);
+ b.dom.window.close();
+});
+
+test('Team primary footer uses all four admin-style destinations only when supplied as allowed links',()=>{
+ const prefix=signedHeader.replace('data-user-level="admin"','data-user-level="team"')+chrome.slice(chrome.indexOf('<aside'));
+ const b=browser('',base+'dashboard-gym',prefix);
+ assert.deepEqual(Array.from(b.document().footer,item=>new URL(item.url).pathname),['/dashboard-gym','/clients-list','/gym-classes','/memberships']);b.dom.window.close();
+});
 test('every gym-all destination and FAQ keeps gym navigation when the server supplies a generic footer',()=>{
  const flatten=items=>items.flatMap(item=>[...(item.url!=='null'?[new URL(item.url,base).href]:[]),...flatten(item.submenu||[])]);
  const prefix=signedHeader+'<aside class="vertical-menu">'+gymMenuMarkup(gymDefinition['left-menu'])+'</aside>'+genericFooter;
@@ -486,6 +519,36 @@ test('every gym-all destination and FAQ keeps gym navigation when the server sup
 test('restricted gym users receive only footer destinations present in their current permitted navigation',()=>{
  const prefix=signedHeader.replace('data-user-level="admin"','data-user-level="team"')+'<aside class="vertical-menu"><a href="/dashboard-gym">Home</a><div data-permission-blocked="1"><a href="/clients-list">Denied</a></div></aside>'+genericFooter;
  const b=browser('<h1>FAQ</h1>',base+'faqs',prefix);assert.equal(b.document().active,true);assert.deepEqual(Array.from(b.document().footer,item=>new URL(item.url).pathname),['/dashboard-gym']);b.dom.window.close();
+});
+
+test('Team startup accepts explicit server role without admin dashboard links or account hash',()=>{
+ for(const role of ['team','equipa']){
+  const prefix='<header id="page-topbar" data-user-level="'+role+'"><button id="page-header-user-dropdown"><span>Coach</span></button></header>'+
+   '<aside class="vertical-menu"><a href="/gym-attendance">Attendance</a><a href="#" data-permission-blocked="1">Company settings</a></aside>'+genericFooter;
+  const b=browser('<h1>Gym dashboard</h1>',base+'dashboard-gym',prefix),doc=b.document();
+  assert.equal(doc.active,true);assert.equal(doc.header.user.level,role);
+  assert.deepEqual(Array.from(doc.footer,item=>new URL(item.url).pathname),['/gym-attendance'],'Use the permitted category without inventing admin tabs');
+  assert.ok(doc.menu.some(item=>item.url===base+'gym-attendance'));
+  assert.ok(!doc.menu.some(item=>item.label==='Company settings'));b.dom.window.close();
+ }
+});
+
+test('legacy translated Team sidebar identifies staff without the new header metadata',()=>{
+ for(const label of ['Level:','Nível:']){
+  const prefix='<header id="page-topbar"><button id="page-header-user-dropdown"><span>Coach</span></button></header>'+
+   '<aside class="vertical-menu"><div class="text-2"><span>'+label+'</span><span>Team</span></div><a href="/gym-classes">Classes</a></aside>'+genericFooter;
+  const b=browser('<h1>Dashboard</h1>',base+'dashboard-gym',prefix),doc=b.document();
+  assert.equal(doc.active,true);assert.equal(doc.header.user.level,'Team');
+  assert.deepEqual(Array.from(doc.footer,item=>new URL(item.url).pathname),['/gym-classes']);b.dom.window.close();
+ }
+});
+
+test('a client navigation link cannot override an explicit Team role, but client pages remain client-owned',()=>{
+ const prefix='<header id="page-topbar" data-user-level="team"><button id="page-header-user-dropdown">Coach</button></header>'+genericFooter+
+  '<div class="mobile-bottom-nav"><a href="/dashboard-gym-client">My bookings</a></div>';
+ const staff=browser('',base+'dashboard-gym',prefix);assert.equal(staff.document().active,true);staff.dom.window.close();
+ const self=browser('',base+'dashboard-gym-client',prefix);assert.equal(self.document().active,false);assert.equal(self.document().client,true);self.dom.window.close();
+ const guest=browser('',base+'dashboard-gym','<header id="page-topbar"></header>'+genericFooter);assert.equal(guest.document().active,false);guest.dom.window.close();
 });
 test('client and public pages cannot inherit admin footer from a generic header shell',()=>{
  const client=browser('',base+'faqs',signedHeader.replace('data-user-level="admin"','data-user-level="client"')+genericFooter);assert.equal(client.document().active,false);assert.equal(client.document().client,true);client.dom.window.close();

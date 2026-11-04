@@ -123,7 +123,7 @@ function NativePage({pages,admin,color,t}) {
     </>}/>
   ;
 }
-const tabIcon=url=>url.includes('clients-list')?'profile':url.includes('gym-classes')?'bookings':url.includes('memberships')?'pass':'home';
+const tabIcon=url=>url.includes('clients-list')?'profile':/gym-classes|classes-schedule/.test(url)?'bookings':url.includes('memberships')?'pass':url.includes('gym-attendance')?'sessions':menuIcon({url});
 function MenuRow({label,icon='more',color,onPress,expanded,disabled=false,caption,accessibilityLabel}) {
   return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel||label}
     accessibilityState={{disabled,...(typeof expanded==='boolean'?{expanded}:{})}} disabled={disabled} onPress={onPress} style={s.menuRow}>
@@ -157,6 +157,13 @@ export default function NativeAdminFrame({pages,admin,children,onBack,brandColor
   const logout=pages.document?.accountActions?.find(action=>action.kind==='logout');
   useEffect(()=>{setMenu(null);setScan(false);},[pages.document?.page?.url]);
   const active=!!pages.document&&!!pages.page;
+  const team=['team','equipa','equipe'].includes(String(pages.document?.header?.user?.level||'').trim().toLowerCase());
+  const compactTeam=team&&(pages.document?.footer.length||0)<3;
+  const hasQuickAction=team?!!pages.document?.scanner:!!(pages.document?.create?.length||pages.document?.scanner);
+  const quickAction=()=> <Pressable testID={team?'native-team-qr-plus':'native-admin-plus'} accessibilityRole="button" accessibilityLabel={team?t.scan:t.create} onPress={()=>setMenu('create')}
+    style={[s.fab,{backgroundColor:color},compactTeam&&{position:'absolute',left:'50%',top:28,marginHorizontal:0,transform:[{translateX:-24},{translateY:-24}],zIndex:2}]}>
+    <View accessible={false} pointerEvents="none" style={s.plusGlyph}><View style={s.plusHorizontal}/><View style={s.plusVertical}/></View>
+  </Pressable>;
   const preparing=!active&&['loading','failed'].includes(pages.startup);
   const native=active&&!pages.web&&(timer||pages.page.kind!=='web')&&(timer||admin.screen!=='classes');
   const navigate=url=>{
@@ -182,7 +189,7 @@ export default function NativeAdminFrame({pages,admin,children,onBack,brandColor
       </>}
     </View>}
     {active&&<NativeAdminHeader pages={pages} t={t} color={color} onMenu={()=>setMenu('menu')} onBack={()=>{if(timer)pages.back();else onBack();}}
-      backVisible={timer||admin.screen==='classes'||(!['dashboard','clients','catalog','memberships'].includes(pages.page.kind)&&!/^\/(?:company|preferences)(?:\/index)?\/?$/.test(new URL(pages.page.url).pathname))}
+      backVisible={timer||(!/^\/dashboard-gym(?:\/index)?\/?$/.test(new URL(pages.page.url).pathname)&&!['dashboard','clients','catalog','memberships'].includes(pages.page.kind)&&!/^\/(?:company|preferences)(?:\/index)?\/?$/.test(new URL(pages.page.url).pathname))}
       onHome={()=>{const home=pages.document.footer.find(item=>new URL(item.url).pathname.startsWith('/dashboard-gym'));if(home)navigate(home.url);}}/>}
     {active&&!timer&&<NativeSubcategoryTabs tree={pages.document.menuTree} url={pages.page.url} language={pages.document.language} color={color} onNavigate={navigate}/>}
     <View style={native||preparing?s.hidden:s.flex} pointerEvents={native||preparing?'none':'auto'} accessibilityElementsHidden={native||preparing}
@@ -195,28 +202,28 @@ export default function NativeAdminFrame({pages,admin,children,onBack,brandColor
     {active&&<View testID="native-admin-footer" style={[s.footer,{paddingBottom:Platform.OS==='android'?10:Math.max(10,insets.bottom)}]}>
       <View pointerEvents="none" style={s.footerBackground}/>
       {pages.document.footer.map((item,i)=>{const selected=!timer&&new URL(item.url).pathname===new URL(pages.page.url).pathname;return <React.Fragment key={item.url}>
-        {i===2&&(pages.document.create?.length>0||pages.document.scanner)&&<Pressable accessibilityRole="button" accessibilityLabel={t.create} onPress={()=>setMenu('create')} style={[s.fab,{backgroundColor:color}]}>
-          <View accessible={false} pointerEvents="none" style={s.plusGlyph}><View style={s.plusHorizontal}/><View style={s.plusVertical}/></View>
-        </Pressable>}
+        {i===2&&!compactTeam&&hasQuickAction&&quickAction()}
         <Pressable accessibilityRole="tab" accessibilityLabel={item.label} accessibilityState={{selected}}
           onPress={()=>navigate(item.url)} style={[s.tab,selected&&{backgroundColor:brandSoft(color,.09)}]}><Icon name={tabIcon(item.url)} color={selected?color:theme.muted}/>
           <Text numberOfLines={1} style={[s.tabLabel,{color:selected?color:theme.muted}]}>{item.label}</Text></Pressable>
       </React.Fragment>;})}
-      {pages.document.footer.length<3&&<Pressable accessibilityRole="button" accessibilityLabel={t.more} onPress={()=>setMenu('menu')} style={s.tab}><Icon name="settings" color={color}/><Text style={s.tabLabel}>{t.more}</Text></Pressable>}
+      {compactTeam&&hasQuickAction&&<View accessible={false} style={{width:56}}/>}
+      {compactTeam&&hasQuickAction&&quickAction()}
+      {pages.document.footer.length<(team?4:3)&&<Pressable accessibilityRole="button" accessibilityLabel={t.more} onPress={()=>setMenu('menu')} style={[s.tab,compactTeam&&hasQuickAction&&{flex:Math.max(1,pages.document.footer.length)}]}><Icon name="settings" color={color}/><Text style={s.tabLabel}>{t.more}</Text></Pressable>}
     </View>}
     <Modal visible={!!menu&&active} transparent animationType="slide" onRequestClose={()=>setMenu(null)}>
       <View style={[s.overlay,menu==='menu'&&s.menuOverlay]}><View style={[s.sheet,menu==='menu'&&s.menuPanel,{paddingBottom:Math.max(16,insets.bottom)}]}>
-        <Pressable accessibilityRole="button" accessibilityLabel={t.close} onPress={()=>setMenu(null)} style={s.sheetHeader}><Text heading style={s.title}>{menu==='create'?t.create:t.menu}</Text><Text style={{fontSize:26}}>×</Text></Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel={t.close} onPress={()=>setMenu(null)} style={s.sheetHeader}><Text heading style={s.title}>{menu==='create'?(team?t.scan:t.create):t.menu}</Text><Text style={{fontSize:26}}>×</Text></Pressable>
         <ScrollView testID="native-admin-menu-scroll" style={menu==='menu'?s.menuScroll:undefined} contentContainerStyle={menu==='menu'?s.menuContent:s.content}
           keyboardShouldPersistTaps="handled" nestedScrollEnabled>
           {menu==='menu'&&<MenuRow label={t.company+': '+(pages.document.header?.company||pagecode)} icon="company" color={color}
             caption={copied?t.copied:pagecode} accessibilityLabel={t.copy}
             onPress={()=>Clipboard.setStringAsync(pagecode).then(()=>setCopied(true)).catch(()=>Alert.alert(t.copy,t.error))}/>}
-          {pages.document?.scanner&&(menu==='menu'?<MenuRow label={t.scan} icon="pass" color={color} onPress={()=>{setMenu(null);setScan(true);}}/>:
+          {pages.document?.scanner&&(!team||menu==='create')&&(menu==='menu'?<MenuRow label={t.scan} icon="pass" color={color} onPress={()=>{setMenu(null);setScan(true);}}/>:
             <Action label={t.scan} color={color} onPress={()=>{setMenu(null);setScan(true);}}/>)}
           {menu==='menu'&&pages.document?.menuTree?.length>0?
             pages.document.menuTree.map((item,i)=><MenuBranch key={item.id+':'+i} item={item} navigate={navigate} color={color} currentUrl={pages.page.url}/>):
-            (menu==='create'?pages.document?.create:pages.document?.menu)?.map((item,i)=>menu==='menu'?<MenuRow key={item.url+':'+i} label={item.label} icon={menuIcon(item)} color={color} onPress={()=>navigate(item.url)}/>:
+            (menu==='create'?(team?[]:pages.document?.create):pages.document?.menu)?.map((item,i)=>menu==='menu'?<MenuRow key={item.url+':'+i} label={item.label} icon={menuIcon(item)} color={color} onPress={()=>navigate(item.url)}/>:
               <Action key={item.url+':'+i} label={item.label} color={color} onPress={()=>navigate(item.url)}/>)}
           {menu!=='create'&&pages.document?.accountActions?.filter(action=>action.kind!=='logout').map(action=><MenuRow key={action.id} label={action.label} color={color} onPress={()=>pressAction(action)}/>)}
           {menu==='menu'&&<MenuRow label={pages.document.language==='pt'?'O meu calendário':'My calendar'} icon="bookings" color={color} onPress={()=>{setMenu(null);setCalendarOpen(true);}}/>}
@@ -230,7 +237,7 @@ export default function NativeAdminFrame({pages,admin,children,onBack,brandColor
     </Modal>
     {active&&timerAccountKey&&<NativeFitnessCalendar key={timerAccountKey} accountKey={timerAccountKey} language={pages.document.language} color={color} visible={calendarOpen} onClose={()=>setCalendarOpen(false)}/>}
     {active&&<NativeAdminScanner visible={scan} config={pages.document.scanner} base={siteUrl} t={t} color={color} onClose={()=>setScan(false)} onOpen={url=>{admin.showDashboard();pages.openWeb(url);}}/>}
-    {active&&pages.busy&&<View pointerEvents="none" style={s.progress}><ActivityIndicator color={color}/></View>}
+    {active&&pages.busy&&<View testID="native-admin-loading" pointerEvents="none" style={s.progress}><ActivityIndicator size="large" color={color}/></View>}
   </View>;
 }
 const s=StyleSheet.create({flex:{flex:1},hidden:{position:'absolute',left:-10000,width:'100%',height:'100%',opacity:0},
@@ -253,5 +260,5 @@ const s=StyleSheet.create({flex:{flex:1},hidden:{position:'absolute',left:-10000
   menuBranch:{},menuChild:{paddingLeft:40},menuChildren:{},menuSection:{fontSize:13,color:theme.muted,paddingTop:18,paddingBottom:8},
   menuRow:{minHeight:64,flexDirection:'row',alignItems:'center',gap:14,paddingVertical:14,borderBottomWidth:1,borderColor:theme.border},menuLabel:{fontSize:15,fontWeight:'600',color:theme.text},menuArrowBox:{width:24,height:24,alignItems:'center',justifyContent:'center'},menuArrow:{width:8,height:8,borderRightWidth:2,borderBottomWidth:2},
   sheetHeader:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',padding:20,borderBottomWidth:1,borderColor:theme.border,minHeight:60},menuItem:{padding:18,minHeight:48,borderBottomWidth:1,borderColor:theme.border},
-  error:{color:theme.warning,padding:8},empty:{padding:24,textAlign:'center',color:theme.muted},pagination:{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:12},progress:{position:'absolute',top:70,right:20},
+  error:{color:theme.warning,padding:8},empty:{padding:24,textAlign:'center',color:theme.muted},pagination:{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:12},progress:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,.35)'},
 });
