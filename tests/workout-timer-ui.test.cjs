@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{test}=require('node:test'),babel=require('@babel/core');
+function compile(file,mocks,globals={}){const exports={},code=babel.transformSync(fs.readFileSync(require.resolve('../src/'+file),'utf8'),{babelrc:false,configFile:false,plugins:['@babel/plugin-transform-react-jsx','@babel/plugin-transform-modules-commonjs']}).code;vm.runInNewContext(code,{exports,Date,...globals,require:name=>{assert.ok(name in mocks,name);return mocks[name];}});return exports;}
+const gym=compile('utils/nativeGymCore.js',{}),translations=compile('utils/nativeGymTranslations.js',{}).default;
+function nodes(tree){return !tree||typeof tree!=='object'?[]:[tree,...(tree.props?.children||[]).flat(Infinity).flatMap(nodes)];}
+test('timer asks for automatic Health access on Start, removes the manual save button and marks completion for autosave',async()=>{
+ let time=Date.now();class Clock extends Date{static now(){return time;}}
+ let cursor=0,prepare=0;const slots=[],effects=[],added=[],rows=[{id:'existing',mode:'stopwatch',seconds:10,at:Date.now(),healthSaved:true}],cues=[];
+ const react={createElement:(type,props,...children)=>({type,props:{...props,children}}),useState(initial){const index=cursor++;if(!(index in slots))slots[index]=typeof initial==='function'?initial():initial;return [slots[index],value=>{slots[index]=typeof value==='function'?value(slots[index]):value;}];},useRef(current){const index=cursor++;return slots[index]||(slots[index]={current});},useEffect(fn,deps){const index=cursor++,before=slots[index];if(!before||deps?.some((item,i)=>!Object.is(item,before[i]))){slots[index]=deps||[];effects.push(fn);}}};
+ const native={AppState:{currentState:'active',addEventListener:()=>({remove(){}})},StyleSheet:{create:x=>x},useWindowDimensions:()=>({width:390}),Alert:{alert(){}},Vibration:{vibrate(){}}};
+ for(const key of ['Pressable','TextInput','View'])native[key]=key;
+ const mocks={react,'react-native':native,'expo-crypto':{randomUUID:()=> '12345678-1234-4123-8123-123456789abc'},'expo-secure-store':{getItemAsync:async()=>null,setItemAsync:async()=>{}},'../utils/nativeGymCore':compile('utils/nativeGymCore.js',{},{Date:Clock}),'./NativeGymTypography':{Text:'Text',Icon:'Icon'},'../utils/gymUiTheme':{__esModule:true,default:{},brandSoft:()=>''},'../utils/timerFeedback':{shouldVibrateInterval:()=>false},'../utils/nativeTimerAlerts':{__esModule:true,default:{sync:async()=>{},permission:async()=>true,cue:async(...args)=>cues.push(args),cancel:async()=>{}}},'../utils/workoutHistory':{__esModule:true,default:{list:async()=>rows,add:async(account,row)=>{added.push(row);return rows;}}},'../utils/workoutNative':{canSaveWorkout:true,canAutoSaveWorkout:true,updateWorkoutActivity:async()=>{}},'../utils/workoutHealthAuto':{__esModule:true,default:{prepare:async()=>{prepare++;return 'authorized';},flush:async()=>rows}}};
+ const Screen=compile('screens/NativeWorkoutTimer.js',mocks,{Date:Clock,setInterval:()=>1,clearInterval(){}}).default,t=translations('en'),props={accountKey:'a'.repeat(64),t,color:'#198754'};
+ const render=()=>{cursor=0;const tree=Screen(props);while(effects.length)effects.shift()();return nodes(tree);};
+ render();await new Promise(setImmediate);let tree=render();assert.equal(prepare,0);
+ assert.ok(!tree.some(node=>node.type==='Pressable'&&nodes(node).some(child=>child.type==='Text'&&child.props.children.includes(t.saveHealth))));
+ assert.ok(tree.some(node=>node.type==='Text'&&node.props.children.includes(t.healthSaved)));
+ const button=label=>tree.find(node=>node.type==='Pressable'&&nodes(node).some(child=>child.type==='Text'&&child.props.children.includes(label)));
+ assert.equal(button(t.start).props.disabled,false);await button(t.start).props.onPress();assert.equal(prepare,1);assert.equal(cues[0][1],'work');
+ time+=2000;tree=render();button(t.finish).props.onPress();await new Promise(setImmediate);assert.equal(added.length,1);assert.equal(added[0].healthAuto,true);
+});

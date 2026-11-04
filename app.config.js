@@ -9,7 +9,7 @@ module.exports = ({ config }) => {
     icon: app.icon,
     // Keep updates for different installed company apps separate, even when
     // they share an EAS project and marketing version.
-    runtimeVersion: `${config.version}-${app.appId}-health1-calendar1-oauth1-nativeui2-timeralerts2-adminui4-mobile1-branding1-camera1-clipboard1-fitness2-auth1`,
+    runtimeVersion: `${config.version}-${app.appId}-health1-calendar1-oauth1-nativeui2-timeralerts2-adminui4-mobile1-branding1-camera1-clipboard1-fitness3-auth1`,
     ios: {
       ...config.ios,
       bundleIdentifier: app.appId,

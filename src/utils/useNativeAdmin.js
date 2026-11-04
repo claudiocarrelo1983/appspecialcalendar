@@ -16,9 +16,11 @@ export default function useNativeAdmin(webViewRef, base) {
   const cache = useRef(new Map()), dashboard = useRef(false);
   const enterSchedule = useRef(false);
   const lastRoster = useRef(null);
+  const pendingReminder = useRef(null);
   const applyContext = useCallback(value => { contextRef.current = value; setContext(value); }, []);
   const applyRoster = useCallback(value => { rosterRef.current = value; setRoster(value); }, []);
   const reset = useCallback(() => {
+    pendingReminder.current=null;
     setSharedClass(null);
     version.current++;
     pending.current.forEach(item => { clearTimeout(item.timeout); item.reject(Error('navigating')); }); pending.current.clear();
@@ -96,7 +98,17 @@ export default function useNativeAdmin(webViewRef, base) {
         applyRoster({ class: result.class, participants });
         const previous = contextRef.current;
         if (previous) {
-          const next = { ...previous, classes: previous.classes.map(item => Number(item.schedule_id) === Number(result.class.schedule_id) ? result.class : item) };
+          // Attendance responses omit the card's calendar/share metadata.
+          // Retain only omitted action fields for this exact class occurrence;
+          // all returned fields (including permissions and explicit nulls) win.
+          const next = { ...previous, classes: previous.classes.map(item => {
+            if (Number(item.schedule_id) !== Number(result.class.schedule_id) || item.date !== result.class.date) return item;
+            const updated = { ...result.class };
+            for (const key of ['calendarEvent', 'calendarUrl', 'shareUrl']) {
+              if (!Object.prototype.hasOwnProperty.call(updated, key)) updated[key] = item[key];
+            }
+            return updated;
+          }) };
           applyContext(next); cache.current.set(cacheKey(next.date, next.classCode), next);
         }
       }
@@ -110,6 +122,11 @@ export default function useNativeAdmin(webViewRef, base) {
     url.current = target || ''; version.current++; classRevision.current++; rosterRevision.current++; searchRevision.current++;
     pending.current.forEach(item => { clearTimeout(item.timeout); item.reject(Error('navigating')); }); pending.current.clear();
     dashboard.current = isAdminDashboard(target, base); enterSchedule.current=dashboard.current;
+    pendingReminder.current=null;
+    if(dashboard.current){
+      const link=new URL(target,base),schedule=Number(link.searchParams.get('schedule_id')),date=link.searchParams.get('date');
+      if(link.searchParams.get('_push_class')==='1'&&Number.isSafeInteger(schedule)&&schedule>0&&validAdminDate(date))pendingReminder.current={schedule,date};
+    }
     setOnDashboard(dashboard.current); setScreen('web'); applyRoster(null); setRosterLoading(false); setRosterOpen(false);
     busyRef.current = false; setBusy(false); setError('');
     if (!sameGymOrigin(target, base) || /^\/(?:site\/)?(?:login|logout)\/?$/.test(new URL(target, base).pathname)
@@ -135,6 +152,7 @@ export default function useNativeAdmin(webViewRef, base) {
         classes: message.classes.filter(validAdminClass), next: message.next, total: message.total, hasMore: message.hasMore === true };
       applyContext(next); cache.current.set(cacheKey(next.date, next.classCode), next); webViewRef.current?.injectJavaScript(adminActivationScript(true));
       if(enterSchedule.current){enterSchedule.current=false;setScreen('classes');}
+      if(pendingReminder.current?.date===next.date){const reminder=pendingReminder.current;pendingReminder.current=null;loadRoster(reminder.schedule,reminder.date);}
     } else if (message.event === 'open' && dashboard.current && contextRef.current) {
       loadRoster(message.schedule, message.date);
     } else if (message.event === 'response') {

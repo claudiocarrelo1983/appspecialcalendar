@@ -247,6 +247,7 @@ function shell(gym, child, extra = {}) {
     './NativeCompanyLogo':'CompanyLogo','./NativeFitnessCalendar':'FitnessCalendar',
     './NativeGymTypography': { Text: 'Text', Icon: 'Icon', NativeFontContext: { Provider: 'Provider' } },
     '../utils/gymUiTheme': { __esModule: true, default: {}, brandSoft: () => '' },
+    '../utils/summaryCardLayout': load('utils/summaryCardLayout.js', {}),
     '../utils/companyAppConfig': () => ({ color: '#198754' }),
     '../utils/nativeCompanyBranding': { companyLogoImage: () => 1 },
     '../utils/useBirthdayCount': () => [0,()=>{}],
@@ -286,7 +287,7 @@ test('client header shows company and member identity with booking shortcuts and
  const tree=nodes(shell({data:snapshot(),screen:'web',webSection:'bookings'},null,{bookings:{page:null,busy:false,load:()=>loads++}}));
  assert.ok(tree.some(node=>node.props.testID==='native-client-header'));
  assert.ok(tree.some(node=>node.type==='Text'&&node.props.children.includes('Test member')&&node.props.children.includes(' · Member')));
- for(const label of ['Upcoming bookings','History']) {
+ for(const label of ['Upcommings','History']) {
   const button=tree.find(node=>node.props.accessibilityRole==='button'&&node.props.accessibilityLabel===label);
   assert.ok(button);button.props.onPress();
  }

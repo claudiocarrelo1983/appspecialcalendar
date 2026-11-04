@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.ftxteam.app",
+      "sha256_cert_fingerprints": [
+        "60:02:8B:6D:B0:E8:3C:D8:8C:00:BD:43:74:58:EC:BA:C7:00:5A:7C:BA:43:BA:70:C0:91:C5:17:4D:B2:E1:E4"
+      ]
+    }
+  }
+]

@@ -4,7 +4,7 @@ module.exports = function withHealthTools(config) {
   config = withEntitlementsPlist(config, value => { value.modResults['com.apple.developer.healthkit'] = true; return value; });
   config = withInfoPlist(config, value => {
     value.modResults.NSHealthShareUsageDescription = `${config.name || 'This app'} reads the workouts and daily steps you allow, to show your fitness history and dashboard. Sync imports these records into your selected company account.`;
-    value.modResults.NSHealthUpdateUsageDescription = `${config.name || 'This app'} saves completed timer workouts to Apple Health when you choose Save to Apple Health. No calories or distance are estimated.`;
+    value.modResults.NSHealthUpdateUsageDescription = `${config.name || 'This app'} automatically saves completed timer workouts to Apple Health after you allow workout writing when starting a workout. No calories or distance are estimated.`;
     return value;
   });
   config = withGradleProperties(config, value => {

@@ -5,6 +5,14 @@ class MobilePushBootstrap implements \yii\base\BootstrapInterface
 {
     public function bootstrap($app)
     {
+        // Native app data must share the website session. Keep these aliases
+        // outside /api locations that may be served by a separate server rule.
+        if ($app instanceof \yii\web\Application && $app->controllerNamespace === 'frontend\\controllers') {
+            $app->urlManager->addRules([
+                'native-gym'=>'api/v1/native-gym/index',
+                'native-gym/<action:csrf|sessions|checkin|checkout|logout|notifications|notification-read|language|birthdays>'=>'api/v1/native-gym/<action>',
+            ], false);
+        }
         $apps = \common\helpers\MobilePushApps::all();
         $mask = ['_POST.installationSecret', '_POST.token', '_POST.handoff', '_POST.expoPushToken', '_GET.installationSecret', '_GET.token',
             '_SERVER.HTTP_AUTHORIZATION', '_COOKIE', '_SESSION', '_SERVER.MOBILE_PUSH_APPS_JSON', '_ENV.MOBILE_PUSH_APPS_JSON',

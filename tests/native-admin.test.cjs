@@ -133,6 +133,16 @@ test('admin dashboard enters the native date and class schedule without a second
   assert.equal(p.render().screen,'classes','returning to Dashboard also opens an empty native schedule');
 });
 
+test('a reminder opens its protected class roster once after the requested date is ready',async()=>{
+ const p=hook();p.render().onNavigation(base+'dashboard-gym/index?date='+p.klass.date+'&schedule_id=1&_push_class=1');
+ p.send({event:'ready',date:p.klass.date,classes:[p.klass],total:1});
+ assert.ok(p.render().rosterOpen);assert.ok(p.render().rosterLoading);
+ const id=p.lastId();p.reply(id,{class:p.klass,participants:[]});await new Promise(setImmediate);
+ assert.equal(p.render().roster.class.schedule_id,1);p.render().closeRoster();
+ p.send({event:'ready',date:p.klass.date,classes:[p.klass],total:1});
+ assert.equal(p.render().rosterOpen,false,'Background snapshots must not reopen the dismissed reminder');
+});
+
 test('class tab uses already-loaded data and returns to dashboard without any navigation request', () => {
   const p = hook(), requests = p.scripts.length;
   p.render().showClasses(); assert.equal(p.render().screen, 'classes'); assert.equal(p.scripts.length, requests);
@@ -166,6 +176,24 @@ test('attendance patches one member in place with stable IDs, without reloading 
   assert.equal(p.render().roster.participants[1], second);
   assert.ok(p.render().rosterOpen); assert.ok(!p.scripts.some(script => /location\.(?:assign|reload|replace)/.test(script)));
 });
+test('adding a member preserves calendar and share actions while updating the class card', async () => {
+  const p = hook();
+  const links = {calendarUrl:'https://calendar.google.com/calendar/render?action=TEMPLATE',
+    calendarEvent:{title:'Muay Thai'},shareUrl:base+'dashboard-gym-client/index?date='+p.klass.date+'&schedule_id=1&company_code=ftx'};
+  p.send({event:'ready',date:p.klass.date,classes:[{...p.klass,...links}],total:1});
+  const load=p.render().loadRoster(1,p.klass.date);
+  p.reply(p.lastId(),{class:p.klass,participants:[]});await load;
+  const add=p.render().mutate('add',{member_guid:'member-one'});
+  p.reply(p.lastId(),{class:{...p.klass,stats:{registered:2}},participants:[]});await add;
+  const card=p.render().context.classes[0];
+  assert.equal(card.stats.registered,2);
+  for(const key of Object.keys(links))assert.equal(JSON.stringify(card[key]),JSON.stringify(links[key]),key);
+  const remove=p.render().mutate('remove',{booking_id:2});
+  p.reply(p.lastId(),{class:{...p.klass,shareUrl:null,calendarEvent:null,calendarUrl:null},participants:[]});await remove;
+  assert.equal(p.render().context.classes[0].shareUrl,null,'explicitly removed actions stay removed');
+  assert.equal(p.render().context.classes[0].calendarEvent,null);
+});
+
 test('read-only rosters cannot submit mutations and stale roster replies cannot reopen a closed modal', async () => {
   const p = hook(), load = p.render().loadRoster(1, p.klass.date);
   p.reply(p.lastId(), { class: { ...p.klass, can_manage: false }, participants: [] }); await load;

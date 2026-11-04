@@ -35,7 +35,7 @@ test('background set alarms are scheduled by the OS and all are cancelled on pau
  const api={getPermissionsAsync:async()=>({granted:true}),getAllScheduledNotificationsAsync:async()=>Array.from(scheduled.values()),cancelScheduledNotificationAsync:async id=>{cancelled.push(id);scheduled.delete(id);},dismissNotificationAsync:async()=>{},setNotificationChannelAsync:async()=>{},scheduleNotificationAsync:async value=>scheduled.set(value.identifier,value),SchedulableTriggerInputTypes:{DATE:'date'},AndroidImportance:{MAX:5},AndroidAudioUsage:{ALARM:4},AndroidNotificationPriority:{HIGH:2}};
  const {createTimerAlerts}=load('nativeTimerAlerts.js',{'expo-notifications':api,'react-native':{Platform:{OS:'android'}},'./nativeGymCore':gym,'./workoutNative':{updateWorkoutActivity:async()=>{}}});
  const alerts=createTimerAlerts(api,'android',()=>100000),timer={status:'running',mode:'interval',work:40,rest:20,rounds:3,elapsed:0,startedAt:100000};
- await alerts.sync(a,timer,'Done','Finished','Set complete');assert.equal(scheduled.size,3);
+ await alerts.sync(a,timer,'Done','Finished','Set complete');assert.equal(scheduled.size,5);
  assert.equal(scheduled.get('gym-timer-'+a+'-set-1').trigger.date.getTime(),140000);assert.equal(scheduled.get('gym-timer-'+a+'-set-2').trigger.date.getTime(),200000);
  assert.equal(scheduled.get('gym-timer-'+a).trigger.date.getTime(),260000);await alerts.sync(a,{...timer,status:'paused'},'Done','Finished');assert.equal(scheduled.size,0);
 });
@@ -46,7 +46,7 @@ test('cloud history merge preserves pending local workouts and Health save state
  const rows=await h.list(a);assert.equal(rows.length,2);assert.equal(rows.find(row=>row.id===id).healthSaved,true);assert.equal(rows.find(row=>row.id!==id).synced,true);assert.equal((await h.list(b)).length,0);
 });
 test('workout sync uses same-origin CSRF-protected requests and rejects a changed signed-in owner',async()=>{
- const {workoutSyncScript}=load('useWorkoutSync.js',{react:{},'react-native':{},'./workoutHistory':{},'expo-secure-store':{},'./nativeGymCore':{},'./workoutNative':{}});
+ const {workoutSyncScript}=load('useWorkoutSync.js',{react:{},'react-native':{},'./workoutHistory':{},'expo-secure-store':{},'./nativeGymCore':{},'./workoutHealthAuto':{flush:async()=>[]},'./workoutNative':{}});
  const script=workoutSyncScript('https://club.example','one',a,[]);
  const execute=async(origin,owner)=>{const calls=[],messages=[],context={location:{origin},window:{ReactNativeWebView:{postMessage:message=>messages.push(JSON.parse(message))}},AbortController,setTimeout,clearTimeout,URLSearchParams,fetch:async(url,options)=>{calls.push({url,options});return {ok:true,json:async()=>url==='/api/v1/csrf'?{success:true,data:{token:'secret'}}:url.endsWith('/sync')?{success:true,ids:[]}:{success:true,ownerKey:owner,rows:[]}};}};
    await vm.runInNewContext(script.replace(/;true;$/,''),context);return {calls,messages};};
@@ -54,7 +54,7 @@ test('workout sync uses same-origin CSRF-protected requests and rejects a change
  const wrong=await execute('https://club.example',b);assert.equal(wrong.messages[0].success,false);assert.equal((await execute('https://foreign.example',a)).calls.length,0);
 });
 test('workout sync bridge uses literal source for Hermes release builds',()=>{
- const mocks={react:{},'react-native':{},'./workoutHistory':{},'expo-secure-store':{},'./nativeGymCore':{},'./workoutNative':{}},exports={};
+ const mocks={react:{},'react-native':{},'./workoutHistory':{},'expo-secure-store':{},'./nativeGymCore':{},'./workoutHealthAuto':{flush:async()=>[]},'./workoutNative':{}},exports={};
  const code=babel.transformSync(fs.readFileSync(path.join(__dirname,'../src/utils/useWorkoutSync.js'),'utf8'),{babelrc:false,configFile:false,plugins:['@babel/plugin-transform-modules-commonjs']}).code;
  vm.runInNewContext('Function.prototype.toString=function(){throw Error("Source unavailable");};'+code,{exports,URL,require:name=>mocks[name]});assert.ok(exports.workoutSyncScript('https://club.example','one',a,[]).includes('/native-workouts/sync'));
 });

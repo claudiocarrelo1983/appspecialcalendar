@@ -6,9 +6,9 @@ export function getNotifications() {
   try {
     const module = require('expo-notifications');
     module.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
+      handleNotification: async notification => ({
+        shouldShowBanner: notification?.request?.content?.data?.type!=='workout-set',
+        shouldShowList: notification?.request?.content?.data?.type!=='workout-set',
         shouldPlaySound: true,
         shouldSetBadge: false,
       }),

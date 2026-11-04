@@ -84,7 +84,9 @@
         {
           "defaultChannel": "class-reminders",
           "sounds": [
-            "./src/assets/audio/gym_timer_finished.wav"
+            "./src/assets/audio/gym_timer_finished.wav",
+            "./src/assets/audio/gym_timer_work.wav",
+            "./src/assets/audio/gym_timer_rest.wav"
           ]
         }
       ],

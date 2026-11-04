@@ -1,0 +1,372 @@
+{
+  "left-menu": [
+    {
+      "key": "t-dashboard-gym",
+      "title": "gym_nav_dashboard",
+      "url": "../dashboard-gym",
+      "icon": "bx bx-dumbbell",
+      "submenu": []
+    },
+    {
+      "key": "t-members",
+      "title": "gym_nav_members",
+      "url": "null",
+      "icon": "dripicons-user-group",
+      "submenu": [
+        {
+          "parent": "t-members",
+          "key": "t-members-list",
+          "title": "gym_nav_list",
+          "url": "clients-list/",
+          "submenu": []
+        },
+        {
+          "parent": "t-members",
+          "key": "t-members-memberships",
+          "title": "gym_nav_memberships",
+          "url": "memberships/",
+          "submenu": []
+        },
+        {
+          "parent": "t-members",
+          "key": "t-members-attendance",
+          "title": "gym_nav_attendance",
+          "url": "gym-attendance/",
+          "submenu": []
+        },
+        {
+          "parent": "t-members",
+          "key": "t-members-waivers",
+          "title": "gym_nav_waivers",
+          "url": "waivers/",
+          "submenu": []
+        },
+        {
+          "parent": "t-members",
+          "key": "t-members-debts",
+          "title": "gym_nav_debts",
+          "url": "members-debts/",
+          "icon": "bx bx-wallet",
+          "submenu": []
+        }
+      ]
+    },
+    {
+      "key": "t-classes",
+      "title": "gym_nav_classes",
+      "url": "null",
+      "icon": "bx bx-calendar",
+      "submenu": [
+        {
+          "parent": "t-classes",
+          "key": "t-classes-schedule",
+          "title": "gym_nav_schedule",
+          "url": "classes-schedule/",
+          "submenu": []
+        },
+        {
+          "parent": "t-classes",
+          "key": "t-classes-gym-classes",
+          "title": "gym_nav_class_list",
+          "url": "gym-classes/",
+          "submenu": []
+        },
+        {
+          "parent": "t-classes",
+          "key": "t-members-personal-classes",
+          "title": "gym_nav_packages",
+          "url": "personal-classes/",
+          "icon": "bx bx-user-voice",
+          "submenu": []
+        },
+        {
+          "parent": "t-classes",
+          "key": "t-configurations-company-locations",
+          "title": "gym_nav_locations",
+          "url": "company-locations/",
+          "icon": "bx bx-buildings",
+          "submenu": []
+        },
+        {
+          "parent": "t-classes",
+          "key": "t-classes-gym-classes-room",
+          "title": "gym_nav_rooms",
+          "url": "gym-classes-rooms/",
+          "submenu": []
+        },
+        {
+          "parent": "t-classes",
+          "key": "t-classes-gym-class-categories",
+          "title": "gym_nav_categories",
+          "url": "gym-classes-categories/",
+          "icon": "bx bx-category",
+          "submenu": []
+        }
+      ]
+    },
+    {
+      "key": "t-coaches",
+      "title": "gym_nav_team",
+      "url": "null",
+      "icon": "bx bx-user-voice",
+      "submenu": [
+        {
+          "parent": "t-coaches",
+          "key": "t-coaches-list",
+          "title": "gym_nav_coaches",
+          "url": "team-members/",
+          "submenu": []
+        },
+        {
+          "parent": "t-coaches",
+          "key": "t-coaches-tasks",
+          "title": "gym_nav_tasks",
+          "url": "task-operations/",
+          "submenu": []
+        },
+        {
+          "parent": "t-coaches",
+          "key": "t-coaches-vacations",
+          "title": "gym_nav_leave",
+          "url": "vacations/",
+          "submenu": []
+        },
+        {
+          "parent": "t-coaches",
+          "key": "t-coaches-permissions",
+          "title": "gym_nav_permissions",
+          "url": "permissions/",
+          "submenu": []
+        },
+        {
+          "parent": "t-coaches",
+          "key": "t-coaches-clock",
+          "title": "clock_in_out",
+          "url": "/hotel-clock/index",
+          "icon": "bx bx-time-five",
+          "submenu": []
+        },
+        {
+          "parent": "t-coaches",
+          "key": "t-coaches-shift-planner",
+          "title": "shift_planner",
+          "url": "/shift-planner/index",
+          "icon": "bx bx-calendar",
+          "submenu": []
+        }
+      ]
+    },
+    {
+      "key": "t-performance",
+      "title": "gym_nav_progress",
+      "url": "null",
+      "icon": "bx bx-line-chart",
+      "submenu": [
+        {
+          "parent": "t-performance",
+          "key": "t-performance-dashboard",
+          "title": "gym_nav_overview",
+          "url": "performance-dashboard/",
+          "icon": "bx bx-grid-alt",
+          "submenu": []
+        },
+        {
+          "parent": "t-performance",
+          "key": "t-performance-assessments",
+          "title": "gym_nav_assessments",
+          "url": "fitness-assessments/",
+          "icon": "bx bx-clipboard",
+          "submenu": []
+        },
+        {
+          "parent": "t-performance",
+          "key": "t-performance-body",
+          "title": "gym_nav_measurements",
+          "url": "body-measurements/",
+          "icon": "bx bx-ruler",
+          "submenu": []
+        },
+        {
+          "parent": "t-performance",
+          "key": "t-performance-goals",
+          "title": "gym_nav_goals",
+          "url": "fitness-goals/",
+          "icon": "bx bx-target-lock",
+          "submenu": []
+        },
+        {
+          "parent": "t-performance",
+          "key": "t-performance-records",
+          "title": "gym_nav_records",
+          "url": "personal-records/",
+          "icon": "bx bx-trophy",
+          "submenu": []
+        },
+        {
+          "parent": "t-performance",
+          "key": "t-performance-progress",
+          "title": "gym_nav_photos",
+          "url": "progress-photos/",
+          "icon": "bx bx-camera",
+          "submenu": []
+        },
+        {
+          "parent": "t-performance",
+          "key": "t-performance-messages",
+          "title": "gym_nav_messages",
+          "url": "/performance-messages",
+          "submenu": []
+        },
+        {
+          "parent": "t-performance",
+          "key": "t-performance-reports",
+          "title": "gym_nav_reports",
+          "url": "performance-reports/",
+          "icon": "bx bx-bar-chart-alt-2",
+          "submenu": []
+        }
+      ]
+    },
+    {
+      "key": "t-events",
+      "title": "gym_nav_events",
+      "url": "null",
+      "icon": "bx bx-trophy",
+      "submenu": [
+        {
+          "parent": "t-events",
+          "key": "t-events-list",
+          "title": "gym_nav_list",
+          "url": "events-list/",
+          "submenu": []
+        },
+        {
+          "parent": "t-events",
+          "key": "t-events-clients",
+          "title": "gym_nav_participants",
+          "url": "event-clients/",
+          "submenu": []
+        },
+        {
+          "parent": "t-events",
+          "key": "t-events-challenges",
+          "title": "gym_nav_challenges",
+          "url": "challenges/",
+          "submenu": []
+        },
+        {
+          "parent": "t-events",
+          "key": "t-events-competitions",
+          "title": "gym_nav_competitions",
+          "url": "competitions/",
+          "submenu": []
+        }
+      ]
+    },
+    {
+      "key": "t-reports",
+      "title": "gym_nav_reports",
+      "url": "null",
+      "icon": "bx bx-bar-chart",
+      "submenu": [
+        {
+          "parent": "t-reports",
+          "key": "t-reports-revenue",
+          "title": "gym_nav_revenue",
+          "url": "revenue-reports/",
+          "submenu": []
+        },
+        {
+          "parent": "t-reports",
+          "key": "t-reports-memberships",
+          "title": "gym_nav_memberships",
+          "url": "membership-reports/",
+          "submenu": []
+        },
+        {
+          "parent": "t-reports",
+          "key": "t-reports-attendance",
+          "title": "gym_nav_attendance",
+          "url": "attendance-reports/",
+          "submenu": []
+        },
+        {
+          "parent": "t-reports",
+          "key": "t-reports-coaches",
+          "title": "gym_nav_coaches",
+          "url": "coach-performance/",
+          "submenu": []
+        }
+      ]
+    },
+    {
+      "key": "t-health-tools",
+      "title": "health_tools",
+      "url": "null",
+      "icon": "bx bx-heart",
+      "submenu": [
+        {
+          "parent": "t-health-tools",
+          "key": "t-health-tools-timer",
+          "title": "workout_timer",
+          "url": "/workout-timer",
+          "icon": "bx bx-timer",
+          "submenu": []
+        },
+        {
+          "parent": "t-health-tools",
+          "key": "t-health-tools-integrations",
+          "title": "gym_sessions",
+          "url": "/gym-sessions",
+          "icon": "bx bx-bar-chart-alt-2",
+          "submenu": []
+        }
+      ]
+    },
+    {
+      "key": "t-configurations",
+      "title": "gym_nav_settings",
+      "url": "null",
+      "icon": "bx bx-cog",
+      "submenu": [
+        {
+          "parent": "t-configurations",
+          "key": "t-configurations-company-page-appearance",
+          "title": "gym_nav_gym",
+          "url": "company/",
+          "submenu": []
+        },
+        {
+          "parent": "t-configurations",
+          "key": "t-configurations-payments-setup",
+          "title": "gym_nav_payments",
+          "url": "payments-setup/index",
+          "icon": "bx bx-credit-card",
+          "submenu": []
+        },
+        {
+          "parent": "t-configurations",
+          "key": "t-configurations-my-plan",
+          "title": "gym_nav_plan",
+          "url": "my-plan/",
+          "submenu": []
+        },
+        {
+          "parent": "t-configurations",
+          "key": "t-configurations-profile",
+          "title": "gym_nav_profile",
+          "url": "profile/",
+          "submenu": []
+        },
+        {
+          "parent": "t-configurations",
+          "key": "t-configurations-legal-documents",
+          "title": "legal_documents_settings",
+          "url": "legal-documents/index",
+          "icon": "bx bx-file",
+          "submenu": []
+        }
+      ]
+    }
+  ]
+}

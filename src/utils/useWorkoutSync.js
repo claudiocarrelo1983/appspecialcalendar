@@ -4,6 +4,7 @@ import history from './workoutHistory';
 import * as SecureStore from 'expo-secure-store';
 import {sameGymOrigin,validTimer,timerFrame} from './nativeGymCore';
 import {updateWorkoutActivity} from './workoutNative';
+import workoutHealth from './workoutHealthAuto';
 // Literal source is safe in Hermes release bundles.
 const WORKOUT_SYNC_SOURCE=String.raw`async function(c){
     if(location.origin!==c.origin||!window.ReactNativeWebView)return;
@@ -32,12 +33,13 @@ export default function useWorkoutSync(ref,base,accountKey){
     if(validTimer(saved.timer)&&saved.timer.status==='running'&&saved.timer.runId){
       const frame=timerFrame(saved.timer);
       if(frame.finished){
-        await history.add(accountKey,{id:saved.timer.runId,mode:saved.timer.mode,seconds:frame.planned,at:saved.timer.startedAt+Math.max(0,frame.planned-saved.timer.elapsed)*1000});
+        await history.add(accountKey,{id:saved.timer.runId,mode:saved.timer.mode,seconds:frame.planned,at:saved.timer.startedAt+Math.max(0,frame.planned-saved.timer.elapsed)*1000,healthAuto:saved.timer.healthAuto===true});
         // Do not overwrite an actively mounted timer's persistence; UUID deduplication
         // lets its own completion transition safely record the same workout.
         await updateWorkoutActivity(accountKey,{status:'completed'}).catch(()=>{});
       }
     }
+    await workoutHealth.flush(accountKey);
     const rows=(await history.list(accountKey)).filter(row=>!row.synced).slice(0,20);
     if(owner.current!==accountKey)return;
     const id=String(++sequence.current),timer=setTimeout(()=>{if(pending.current?.id===id)pending.current=null;},15000);

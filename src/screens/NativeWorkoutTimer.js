@@ -7,7 +7,8 @@ import {Text,Icon} from './NativeGymTypography';
 import theme,{brandSoft} from '../utils/gymUiTheme';
 import timerAlerts from '../utils/nativeTimerAlerts';
 import workoutHistory from '../utils/workoutHistory';
-import {canSaveWorkout,saveWorkoutToHealth,updateWorkoutActivity,timerAlarmAllowed,openTimerAlarmSettings} from '../utils/workoutNative';
+import {canSaveWorkout,canAutoSaveWorkout,updateWorkoutActivity,timerAlarmAllowed,openTimerAlarmSettings} from '../utils/workoutNative';
+import workoutHealth from '../utils/workoutHealthAuto';
 import {shouldVibrateInterval} from '../utils/timerFeedback';
 
 const initial = () => ({mode: 'stopwatch', status: 'idle', elapsed: 0, startedAt: 0, work: 40, rest: 20, rounds: 8});
@@ -17,10 +18,10 @@ export default function NativeWorkoutTimer({accountKey, t, color}) {
   const [draft, setDraft] = useState({work: '40', rest: '20', rounds: '8'});
   const [now, setNow] = useState(Date.now());
   const [starting, setStarting] = useState(false);
-  const [healthBusy,setHealthBusy]=useState(null);
   const [historyLimit,setHistoryLimit]=useState(20);
   const completed=useRef(null),phase=useRef(null);
   const alive = useRef(true);
+  const owner=useRef(accountKey);owner.current=accountKey;
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   const {width:windowWidth}=useWindowDimensions();
   const [dialWidth,setDialWidth]=useState(null);
@@ -28,7 +29,7 @@ export default function NativeWorkoutTimer({accountKey, t, color}) {
   const storage = 'native-gym-timer-' + accountKey;
   const writes = useRef(Promise.resolve()), foreground = useRef(AppState.currentState === 'active');
   useEffect(() => {
-    let disposed = false; setReady(false); setTimer(initial()); setHistory([]);completed.current=null;phase.current=null;
+    let disposed = false; setReady(false); setStarting(false);setTimer(initial()); setHistory([]);completed.current=null;phase.current=null;
     SecureStore.getItemAsync(storage).then(async raw => {
       if (disposed) return;
       const saved = JSON.parse(raw||'{}');
@@ -45,7 +46,7 @@ export default function NativeWorkoutTimer({accountKey, t, color}) {
   }, [storage]);
   useEffect(()=>{
     let active=true;
-    const read=()=>workoutHistory.list(accountKey).then(rows=>{if(active&&rows.length)setHistory(rows);}).catch(()=>{if(active)setWarning(t.storageError);});
+    const read=()=>workoutHealth.flush(accountKey).then(rows=>{if(active)setHistory(rows);}).catch(()=>{if(active)setWarning(t.storageError);});
     read();const timer=setInterval(read,30000);return()=>{active=false;clearInterval(timer);};
   },[accountKey]);
   useEffect(()=>{
@@ -62,8 +63,8 @@ export default function NativeWorkoutTimer({accountKey, t, color}) {
   useEffect(() => {
     if (!ready) return;
     let disposed = false;
-    timerAlerts.sync(accountKey, timer, t.timerDone, t.timerAlertBody,t.setDone)
-      .catch(() => { if (!disposed) setWarning(t.timerSoundDisabled); });
+    timerAlerts.sync(accountKey, timer, t.timerDone, t.timerAlertBody,t.setDone,{work:t.work,rest:t.rest,round:t.round})
+      .catch(error => { if (!disposed) setWarning(error.message==='timerPhaseLimit'?t.timerPhaseLimit:t.timerSoundDisabled); });
     // Keep the OS alert scheduled when navigating to another screen.
     return () => { disposed = true; };
   }, [ready, accountKey, timer.status, timer.startedAt, timer.elapsed, timer.mode]);
@@ -86,8 +87,8 @@ export default function NativeWorkoutTimer({accountKey, t, color}) {
     completed.current=timer.runId||timer.startedAt;
     setTimer(current => ({...current, status: 'completed', elapsed: seconds, startedAt: 0}));
     const at=timer.status==='running'&&frame.finished?timer.startedAt+Math.max(0,frame.planned-timer.elapsed)*1000:Date.now();
-    if(seconds>=1)workoutHistory.add(accountKey,{id:timer.runId,mode:timer.mode,seconds,at})
-      .then(rows=>{if(alive.current)setHistory(rows);}).catch(()=>{if(alive.current)setWarning(t.storageError);});
+    if(seconds>=1)workoutHistory.add(accountKey,{id:timer.runId,mode:timer.mode,seconds,at,healthAuto:timer.healthAuto===true})
+      .then(()=>workoutHealth.flush(accountKey)).then(rows=>{if(alive.current&&owner.current===accountKey)setHistory(rows);}).catch(()=>{if(alive.current&&owner.current===accountKey)setWarning(t.storageError);});
   };
   useEffect(() => {
     if (ready && timer.status === 'running' && !frame.finished) runningHere.current = true;
@@ -113,12 +114,19 @@ export default function NativeWorkoutTimer({accountKey, t, color}) {
       try{if(!await timerAlarmAllowed()){
         setStarting(false);Alert.alert(t.timer,t.alarmPermission||'Allow Alarms & reminders in phone settings for precise background timer alerts.',[{text:t.cancel,style:'cancel'},{text:t.settings,onPress:()=>openTimerAlarmSettings().catch(()=>setWarning(t.timerSoundDisabled))}]);return;
       }}catch{setStarting(false);setWarning(t.timerSoundDisabled);return;}
-      try { if (!await timerAlerts.permission() && alive.current) setWarning(t.timerSoundDisabled); }
-      catch (_) { if (alive.current) setWarning(t.timerSoundDisabled); }
     }
+    try { if (!await timerAlerts.permission() && alive.current) setWarning(t.timerSoundDisabled); }
+    catch (_) { if (alive.current) setWarning(t.timerSoundDisabled); }
     if (!alive.current) return;
+    if(canAutoSaveWorkout){
+      try{const status=await workoutHealth.prepare();if(status!=='authorized'&&alive.current)setWarning(status==='unavailable'?t.healthUnavailable:t.healthPermissionHint);}
+      catch{if(alive.current)setWarning(t.healthSaveRetry);}
+    }
+    if(!alive.current||owner.current!==accountKey)return;
+    next.healthAuto=canAutoSaveWorkout;
     next.startedAt = Date.now();
     completed.current=null;setStarting(false); setNow(next.startedAt); setTimer(next);
+    timerAlerts.cue(accountKey,'work',t.work).catch(()=>{});
   };
   const reset = () => Alert.alert(t.resetConfirm, '', [
     {text: t.cancel, style: 'cancel'}, {text: t.reset, style: 'destructive', onPress: () => setTimer(current => ({...current, status:'idle', elapsed:0, startedAt:0}))},
@@ -153,16 +161,17 @@ export default function NativeWorkoutTimer({accountKey, t, color}) {
       <View style={s.row}>{idle ? button(t.start,start,true) : <>
         {timer.status==='running' ? button(t.pause,()=>setTimer({...timer,elapsed:timerElapsed(timer),status:'paused',startedAt:0}),true)
           : button(t.resume,()=>setTimer({...timer,status:'running',startedAt:Date.now()}),true)}
-        {button(t.finish,()=>{timerAlerts.cancel(accountKey).catch(()=>setWarning(t.timerSoundDisabled));complete(Math.floor(timerElapsed(timer)));})}</>}
+        {button(t.finish,()=>{timerAlerts.cancel(accountKey).catch(()=>setWarning(t.timerSoundDisabled));timerAlerts.cue(accountKey,'finish',t.timerDone).catch(()=>{});complete(Math.floor(timerElapsed(timer)));})}</>}
         {button(t.reset,reset)}</View>
       <Text style={s.hint}>{t.timerHint}</Text>
+      {canSaveWorkout&&<Text style={s.hint}>{canAutoSaveWorkout?t.healthAutoHint:t.healthUpdateRequired}</Text>}
       {!!warning && <Text accessibilityLiveRegion="polite" style={s.warning}>{warning}</Text>}
     </View>
     <View style={s.card}><View style={s.heading}><View style={[s.iconPlate,{backgroundColor:brandSoft(color)}]}><Icon name="sessions" color={color}/></View>
       <Text heading style={[s.title,{flexShrink:1}]}>{t.recent}</Text></View>
       {history.slice(0,historyLimit).map((row,index)=><View key={row.id||row.at+':'+index} style={s.history}>
         <View style={{flex:1,gap:5}}><Text>{t[row.mode]}</Text><Text style={s.muted}>{new Date(row.at).toLocaleDateString()} · {row.synced?(t.synced||'Synced'):(t.savedOffline||'Saved on this phone')}</Text>
-          {canSaveWorkout&&row.id&&<Pressable disabled={row.healthSaved||healthBusy!==null} accessibilityRole="button" onPress={async()=>{setHealthBusy(row.id);try{await saveWorkoutToHealth(row);setHistory(await workoutHistory.mark(accountKey,row.id,{healthSaved:true}));}catch{Alert.alert(t.timer,t.healthSaveError||'Could not save. Allow workout writing in Apple Health and try again.');}finally{setHealthBusy(null);}}} style={{minHeight:44,justifyContent:'center'}}><Text style={{color}}>{row.healthSaved?(t.healthSaved||'Saved to Apple Health'):(t.saveHealth||'Save to Apple Health')}</Text></Pressable>}
+          {canSaveWorkout&&(row.healthSaved||row.healthAuto)&&<Text accessibilityLiveRegion="polite" style={{color:row.healthSaved?color:theme.muted,fontSize:12}}>{row.healthSaved?t.healthSaved:row.healthStatus==='permission'?t.healthPermissionHint:row.healthStatus==='retry'?t.healthSaveRetry:row.healthStatus==='unavailable'?t.healthUnavailable:t.healthSaving}</Text>}
         </View>
         <Text style={s.time}>{formatDuration(row.seconds)}</Text></View>)}
       {history.length>historyLimit&&button(t.more,()=>setHistoryLimit(value=>value+20))}

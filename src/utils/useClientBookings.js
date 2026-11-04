@@ -21,7 +21,9 @@ export default function useClientBookings(ref,base,accountKey,showing,language){
       if(!active.current||current!==revision.current||requestIdentity!==identity.current)return;
       if(!validClientBookings(result.data))throw Error('invalid_response');
       owner.current=requestIdentity;pageRef.current=result.data;setPage(result.data);
-      if(params?.schedule_id)setFocused(String(params.schedule_id));
+      // A resume refresh may supersede the first request opened by a push.
+      // Use the retained occurrence query, not only the latest call's params.
+      if(query.current.schedule_id)setFocused(String(query.current.schedule_id));
       query.current={date:result.data.date,client_guid:result.data.clientGuid,company_code:result.data.companyCode};
     }catch(failure){if(active.current&&current===revision.current){setError(failure.message);setReference(failure.reference||failure.message);}}
     finally{if(active.current&&current===revision.current)setBusy(false);}

@@ -16,6 +16,7 @@ function load(file, mocks) {
   vm.runInNewContext(code, {
     exports,
     URL,
+    URLSearchParams,
     console: { warn() {} },
     require(name) {
       if(name==='./classLinks')return load('classLinks.js',{});
@@ -58,26 +59,43 @@ test('available notifications initialize once and retain foreground handling', a
   assert.equal(getNotifications(), notifications);
   assert.equal(calls, 1);
   assert.equal((await handler.handleNotification()).shouldShowBanner, true);
+  const phase=await handler.handleNotification({request:{content:{data:{type:'workout-set'}}}});
+  assert.equal(phase.shouldShowBanner,false);assert.equal(phase.shouldShowList,false);assert.equal(phase.shouldPlaySound,true);
 });
 
 function hookWith(notifications, device = () => ({ isDevice: true })) {
   const effects = [];
+  const scripts=[],openedUrls=[];
   const hook = load('usePushNotifications.js', {
     react: () => ({
       useCallback: (callback) => callback,
       useRef: (current) => ({ current }),
       useEffect: (effect) => effects.push(effect),
     }),
-    'react-native': () => ({ Platform: { OS: 'ios' }, AppState: {} }),
+    'react-native': () => ({ Platform: { OS: 'ios' }, AppState: {addEventListener:()=>({remove(){}})} }),
     'expo-constants': () => ({ easConfig: { projectId: 'test-project' } }),
     './notificationModule': () => ({ getNotifications: () => notifications }),
     './pushNotificationNavigation': () => load('pushNotificationNavigation.js', {}),
     './pushInstallation': () => ({ getPushInstallation: async () => ({installationId:'a'.repeat(32),installationSecret:'b'.repeat(64)}), pushRegistrationScript: () => 'true;' }),
     'expo-device': device,
   });
-  hook.default({ current: { injectJavaScript() {} } }, 'https://specialcalendar.com/login', () => {});
-  return { hook, effects };
+  const instance=hook.default({ current: { injectJavaScript(script) {scripts.push(script);} } }, 'https://specialcalendar.com/login', url=>openedUrls.push(url));
+  return { hook, effects,instance,scripts,openedUrls };
 }
+
+test('class reminders use the resolved class popup instead of a generic text popup, with stale fallback',async()=>{
+ let response;
+ const h=hookWith({getPermissionsAsync:async()=>({granted:false,status:'denied'}),requestPermissionsAsync:async()=>({granted:false,status:'denied'}),
+  addNotificationResponseReceivedListener:fn=>{response=fn;return {remove(){}};},addPushTokenListener:()=>({remove(){}}),getLastNotificationResponseAsync:async()=>null,clearLastNotificationResponseAsync:async()=>{}});
+ const cleanup=h.effects[0]();
+ const tap=id=>response({actionIdentifier:'default',notification:{request:{identifier:id,content:{title:'Class reminder',body:'Your class starts in 10 minutes.',data:{type:'class-reminder',url:'/mobile-notifications/open?code='+'a'.repeat(64)}}}}});
+ tap('first');assert.ok(h.openedUrls[0].includes('/mobile-notifications/open?code='));
+ h.instance.onLoadEnd({nativeEvent:{url:'https://specialcalendar.com/dashboard-gym-client/index?date=2026-12-30&schedule_id=7&_push_class=1'}});
+ assert.ok(!h.scripts.some(script=>script.includes('window.__specialCalendarOpenedNotification=')));
+ tap('expired');h.instance.onLoadEnd({nativeEvent:{url:'https://specialcalendar.com/mobile-notifications/open?code='+'a'.repeat(64)}});
+ assert.ok(h.scripts.some(script=>script.includes('window.__specialCalendarOpenedNotification=')),'Expired reminders retain an information fallback');
+ cleanup();await new Promise(setImmediate);
+});
 
 test('startup and registration survive absent notification native modules', async () => {
   const { hook, effects } = hookWith(null);

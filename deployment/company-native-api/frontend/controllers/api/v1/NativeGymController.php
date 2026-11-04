@@ -7,6 +7,7 @@ use common\helpers\Helpers;
 use common\helpers\NativeGymService;
 use common\helpers\SecurityAccess;
 use common\models\Company;
+use common\models\CompanyPlan;
 use Yii;
 use yii\filters\VerbFilter;
 use yii\web\ForbiddenHttpException;
@@ -32,7 +33,45 @@ class NativeGymController extends BaseApiController
 
     protected function scope(): array
     {
-        return \common\helpers\NativeGymCompanyScope::resolve();
+        $client = Yii::$app->user->identity;
+        if (!$client || $client->level !== 'client') {
+            throw new ForbiddenHttpException(Yii::t('app', 'client_access_only'), 4101);
+        }
+        // A remembered account may have a different club selected as its primary
+        // membership. Resolve this app's host through approved memberships only.
+        $hostCompany = null;
+        if (preg_match('/^(c[0-9]+)\.specialcalendar\.com$/D', Yii::$app->request->hostName, $matches)) {
+            $hostCompany = Company::findOne(['company_code_url'=>$matches[1], 'active'=>1]);
+            if (!$hostCompany) throw new ForbiddenHttpException(Yii::t('app', 'company_access_denied'), 4104);
+            if (Yii::$app->has('activeCompany') && Yii::$app->activeCompany instanceof \common\components\ActiveCompany
+                && Yii::$app->activeCompany->getCompanyCode() !== $hostCompany->company_code) {
+                foreach (Yii::$app->activeCompany->getAvailableCompanies() as $allowed) {
+                    if ($allowed->company_code === $hostCompany->company_code) {
+                        Yii::$app->activeCompany->switchCompany($hostCompany->company_code);
+                        break;
+                    }
+                }
+            }
+        }
+        // Match DashboardGymClientController: identity.level selects the client
+        // experience. A company membership's management role is independent and
+        // must not prevent that signed-in client from reading their own pass,
+        // bookings and sessions. ActiveCompany still validates approved access;
+        // every DTO/mutation remains scoped to this identity and company.
+        try { $code = SecurityAccess::companyCode(); }
+        catch (ForbiddenHttpException $e) { throw new ForbiddenHttpException(Yii::t('app', 'company_access_denied'), 4103, $e); }
+        $company = Company::findOne(['company_code' => $code, 'active' => 1]);
+        if (!$company) throw new ForbiddenHttpException(Yii::t('app', 'company_access_denied'), 4103);
+        // Use the current plan, rather than whichever historical row SQL returns first.
+        $plan = CompanyPlan::find()->where(['company_code'=>$code])->orderBy(['active'=>SORT_DESC,'id'=>SORT_DESC])->one();
+        if (!$plan || $plan->plan_name !== 'gym') {
+            throw new ForbiddenHttpException(Yii::t('app', 'company_access_denied'), 4105);
+        }
+        // A company-specific app cannot expose a different club's active session.
+        if ($hostCompany && $company->company_code !== $hostCompany->company_code) {
+            throw new ForbiddenHttpException(Yii::t('app', 'company_access_denied'), 4104);
+        }
+        return [$client, $company];
     }
 
     public function actionIndex()
@@ -121,13 +160,9 @@ class NativeGymController extends BaseApiController
     public function actionBirthdays()
     {
         if ($response = $this->requireAuthenticated()) return $response;
-        [, $company] = $this->scope();
-        $today = (new \DateTimeImmutable('now', new \DateTimeZone(Yii::$app->timeZone)))->format('m-d');
-        $rows = [];
-        foreach (Helpers::getBirthdayDates($company->company_code) as $person) {
-            $date = (string)$person['birthday_sort'];
-            $rows[] = ['name'=>(string)$person['full_name'], 'date'=>substr($date,3,2).'/'.substr($date,0,2), 'today'=>$date===$today];
-        }
+        [$viewer, $company] = $this->scope();
+        $rows = \common\helpers\CompanyBirthdays::rows($company->company_code, (int)$viewer->id);
+        $rows = array_map(static function ($row) { unset($row['id']); return $row; }, $rows);
         return $this->success(['rows'=>$rows]);
     }
 

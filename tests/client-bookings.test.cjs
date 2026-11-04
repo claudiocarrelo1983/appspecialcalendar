@@ -27,6 +27,19 @@ function hook(){
  const reply=(id,result,status=200,url=base)=>render().onMessage({url,data:JSON.stringify({type:core.CLIENT_BOOKINGS_MESSAGE,id,result,status})});
  render();return {render,scripts,links,config,reply,setAccount:value=>{account=value;return render();},setLanguage:value=>{language=value;return render();},async ready(){reply(config().id,{success:true,data:snapshot()});await new Promise(setImmediate);return render();}};
 }
+test('a resume refresh retains the class occurrence requested by a push until its data arrives',async()=>{
+ const h=hook();await h.ready();
+ h.render().onLoadEnd(base+'/dashboard-gym-client/index?date=2027-01-02&schedule_id=7&client_guid=self&_push_class=1');
+ const original=h.config().id;const resumed=h.render().load();const latest=h.config().id;
+ assert.equal(h.config().params.schedule_id,'7');
+ h.reply(original,{success:true,data:snapshot('2027-01-02',true)});await new Promise(setImmediate);
+ assert.equal(h.render().focused,null);
+ h.reply(latest,{success:true,data:snapshot('2027-01-02',true)});await resumed;
+ assert.equal(h.render().focused,'7');assert.equal(h.render().page.rows[0].actions[0].kind,'cancel-booking');
+ h.render().closeFocused();const refresh=h.render().load();h.reply(h.config().id,{success:true,data:snapshot('2027-01-02',true)});await refresh;
+ assert.equal(h.render().focused,null,'Normal refresh must not reopen a dismissed popup');
+});
+
 test('native schedule ignores stale date responses and clears another account immediately',async()=>{
  const h=hook();await h.ready();const first=h.render().load({date:'2026-12-31'}),a=h.config().id;const second=h.render().load({date:'2027-01-01'}),b=h.config().id;
  h.reply(b,{success:true,data:snapshot('2027-01-01')});await second;h.reply(a,{success:true,data:snapshot('2026-12-31')});await first;
@@ -82,5 +95,16 @@ test('client schedule renders native filter, class actions, family controls and 
  assert.ok(actionRow.props.children.flat(Infinity).some(child=>child?.props?.label==='Book class'),'Primary booking action shares the utility button row');
  assert.ok(tree.some(node=>node.props.accessibilityLabel==='Add to calendar'));const share=tree.find(node=>node.props.accessibilityLabel==='Share class');share.props.onPress();tree=render();assert.ok(tree.some(node=>node.type==='ClassShare'&&node.props.embedded));assert.equal(tree.filter(node=>node.type==='Modal'&&node.props.visible).length,1);
  const book=tree.find(node=>node.props.label==='Book class');book.props.onPress();assert.equal(confirmation[0],'Book class');
+ tree.find(node=>node.type==='ClassShare').props.onClose();
+ props.bookings.page={...props.bookings.page,...snapshot('2026-12-30',true)};
+ let cancellations=0;props.bookings.perform=()=>{cancellations++;};tree=render();
+ const title=tree.find(node=>node.type==='Pressable'&&node.props.children.flat(Infinity).some(child=>child?.props?.children?.includes('Muay Thai')));
+ title.props.onPress();tree=render();assert.equal(tree.filter(node=>node.type==='Modal'&&node.props.visible).length,1);
+ assert.ok(tree.some(node=>node.props.accessibilityLabel==='Close'));
+ const cancel=tree.find(node=>node.props.label==='Cancel booking');assert.ok(cancel);assert.equal(cancellations,0,'Opening class details never cancels automatically');
+ cancel.props.onPress();assert.equal(cancellations,0,'Cancellation requires confirmation');confirmation[2][1].onPress();assert.equal(cancellations,1);
+ props.bookings.page={...props.bookings.page,rows:props.bookings.page.rows.map(row=>({...row,actions:[],reason:'Cancellation window closed'}))};tree=render();
+ assert.ok(!tree.some(node=>node.props.label==='Cancel booking'),'Server cancellation policy controls the available action');
+ assert.ok(tree.some(node=>node.type==='Text'&&node.props.children.includes('Cancellation window closed')));
  assert.ok(!tree.some(node=>node.props.testID==='native-member-summary'),'Member identity and booking shortcuts are now in the shared client header');
 });

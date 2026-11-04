@@ -5,8 +5,18 @@ function load(file,mocks={},globals={}){
   const {code}=babel.transformSync(fs.readFileSync(path.join(__dirname,'../src/utils',file),'utf8'),{babelrc:false,configFile:false,plugins:['@babel/plugin-transform-modules-commonjs']});
   const exports={};vm.runInNewContext(code,{exports,URL,...globals,require(name){assert.ok(name in mocks,name);return mocks[name];}});return exports;
 }
-const gym=load('nativeGymCore.js'),core=load('nativeAdminPages.js',{'./nativeGymCore':gym});
+const summaryLayout=load('summaryCardLayout.js');
+const gym=load('nativeGymCore.js'),core=load('nativeAdminPages.js',{'./nativeGymCore':gym,'./summaryCardLayout':summaryLayout,'./subcategoryTabs':load('subcategoryTabs.js')});
 const navigation=load('nativeAdminNavigation.js',{'./nativeGymCore':gym});
+test('native event create/edit fields use weekday labels and preserve each checkbox value',()=>{
+ for(const route of ['events-list/create','events-list/update/7']){
+  const b=browser(`<form method="post"><label>Cost<input name="Events[cost]" value="10"></label><fieldset><legend>Available days</legend>${['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map((day,i)=>`<label class="form-check"><input type="checkbox" name="Events[availableWeekDaysArr][]" value="${i}" ${i===1?'checked':''}><span>${day}</span></label>`).join('')}<button type="submit">Save</button></fieldset></form>`,base+route);
+  const fields=b.document().page.form.fields;assert.deepEqual(fields.slice(1).map(field=>field.label),['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']);
+  assert.equal(fields[2].value,true);assert.equal(fields[1].value,false);
+  b.run('change',{id:fields[1].id,value:true});
+  const controls=b.w.document.querySelectorAll('input[type=checkbox]');assert.equal(controls[0].checked,true);assert.equal(controls[1].checked,true);assert.equal(controls[0].value,'0');assert.equal(controls[1].value,'1');
+ }
+});
 const chrome=`<header id="page-topbar"><a href="/profile">Profile</a><a href="/site/logout" data-method="post">Logout</a></header>
   <aside class="vertical-menu"><a href="/reports">Reports</a><a href="#" data-permission-blocked="1">Forbidden</a><a href="https://other.example/admin">Foreign</a></aside>
   <div class="mobile-bottom-nav"><a href="/dashboard-gym">Dashboard</a><a href="/clients-list">Clients</a><div id="fabMenu"><a href="/memberships/create">Create membership</a></div><a href="/gym-classes">Classes</a><a href="/memberships">Memberships</a></div>`;
@@ -60,6 +70,18 @@ test('native frame exports only permitted same-company navigation and keeps POST
   b.run('frame',{enabled:true});assert.ok(b.w.document.documentElement.classList.contains('__scNativeAdminFrame'));
   b.run('frame',{enabled:false});assert.ok(!b.w.document.documentElement.classList.contains('__scNativeAdminFrame'));b.dom.window.close();
 });
+test('web header and footer stay hidden even when optional summary styling fails',()=>{
+ const b=browser('<div class="gym-app-layout"><div class="challenge-stat-card">Total</div></div>');
+ b.w.GymSummaryCards={enhance:()=>{throw Error('Optional layout failed');}};
+ assert.doesNotThrow(()=>b.run('frame',{enabled:true}));
+ assert.equal(b.w.getComputedStyle(b.w.document.getElementById('page-topbar')).display,'none');
+ assert.equal(b.w.getComputedStyle(b.w.document.querySelector('.mobile-bottom-nav')).display,'none');
+ assert.ok(b.messages.some(message=>message.event==='layout-error'));
+ b.run('frame',{enabled:false});
+ assert.notEqual(b.w.getComputedStyle(b.w.document.getElementById('page-topbar')).display,'none');
+ b.dom.window.close();
+});
+
 test('received notifications and birthdays stay in header sheets and never become menu items',()=>{
   const top=chrome.replace('<a href="/profile">Profile</a>',`<a href="/profile">Profile</a>
     <button><i class="bx-bell"></i><span class="badge">2</span></button>
@@ -445,4 +467,28 @@ test('the complete injected-document handshake activates native administration w
   assert.ok(b.w.document.documentElement.classList.contains('__scNativeAdminFrame'));
   assert.ok(h.timers.size<=1,'Only idle preloading may remain after the document is ready');
   h.unmount();assert.equal(h.timers.size,0);b.dom.window.close();
+});
+
+const gymDefinition=require('./fixtures/gym-all.json');
+const gymMenuMarkup=items=>'<ul>'+items.map(item=>'<li><a'+(item.url==='null'?'':' href="'+new URL(item.url,base).pathname+'"')+'><span>'+item.title+'</span></a>'+gymMenuMarkup(item.submenu||[])+'</li>').join('')+'</ul>';
+const genericFooter='<div class="mobile-bottom-nav"><a href="/dashboard">Messages</a><div id="fabBtn">Menu</div><a href="/profile">Time clock</a></div>';
+const signedHeader='<header id="page-topbar" data-fitness-account="'+'a'.repeat(64)+'"><button id="page-header-user-dropdown" data-user-level="admin"><span>Admin</span></button></header>';
+test('every gym-all destination and FAQ keeps gym navigation when the server supplies a generic footer',()=>{
+ const flatten=items=>items.flatMap(item=>[...(item.url!=='null'?[new URL(item.url,base).href]:[]),...flatten(item.submenu||[])]);
+ const prefix=signedHeader+'<aside class="vertical-menu">'+gymMenuMarkup(gymDefinition['left-menu'])+'</aside>'+genericFooter;
+ for(const url of [...flatten(gymDefinition['left-menu']),base+'faqs']){
+  const b=browser('<h1>Feature</h1><button id="original-control">Original website control</button>',url,prefix),doc=b.document();
+  assert.equal(doc.active,true,url);assert.deepEqual(Array.from(doc.footer,item=>new URL(item.url).pathname.replace(/\/$/,'')),['/dashboard-gym','/clients-list','/gym-classes','/memberships'],url);
+  b.run('frame',{enabled:true});assert.equal(b.w.getComputedStyle(b.w.document.querySelector('.mobile-bottom-nav')).display,'none');
+  assert.ok(b.w.document.querySelector('#original-control'));b.dom.window.close();
+ }
+});
+test('restricted gym users receive only footer destinations present in their current permitted navigation',()=>{
+ const prefix=signedHeader.replace('data-user-level="admin"','data-user-level="team"')+'<aside class="vertical-menu"><a href="/dashboard-gym">Home</a><div data-permission-blocked="1"><a href="/clients-list">Denied</a></div></aside>'+genericFooter;
+ const b=browser('<h1>FAQ</h1>',base+'faqs',prefix);assert.equal(b.document().active,true);assert.deepEqual(Array.from(b.document().footer,item=>new URL(item.url).pathname),['/dashboard-gym']);b.dom.window.close();
+});
+test('client and public pages cannot inherit admin footer from a generic header shell',()=>{
+ const client=browser('',base+'faqs',signedHeader.replace('data-user-level="admin"','data-user-level="client"')+genericFooter);assert.equal(client.document().active,false);assert.equal(client.document().client,true);client.dom.window.close();
+ const publicPage=browser('',base+'faqs','<header id="page-topbar"></header>'+genericFooter);assert.equal(publicPage.document().active,false);publicPage.dom.window.close();
+ const login=browser('',base+'login',signedHeader+genericFooter);assert.equal(login.document().active,false);login.dom.window.close();
 });

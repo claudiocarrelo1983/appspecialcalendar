@@ -17,6 +17,7 @@ import companyAppConfig from '../utils/companyAppConfig';
 import {companyLogoImage} from '../utils/nativeCompanyBranding';
 import NativeCompanyLogo from './NativeCompanyLogo';
 import NativeFitnessCalendar from './NativeFitnessCalendar';
+import {summaryCardTone} from '../utils/summaryCardLayout';
 
 function Button({label,onPress,color,disabled,secondary}) {
   return <Pressable accessibilityRole="button" accessibilityState={{disabled:!!disabled}} disabled={disabled}
@@ -85,10 +86,10 @@ function NativeSessions({gym,t,color}) {
     {!!error && <Card><Text style={s.warning}>{error==='offline'?t.offline:error}</Text>
       <Button label={t.retry} color={color} onPress={()=>load()}/></Card>}
     {stats && <View style={s.grid}>{[[t.visits,stats.visits],[t.days,stats.days],
-      [t.total,formatDuration(stats.seconds)],[t.average,formatDuration(stats.average)]].map(([label,value])=>
-      <View key={label} style={s.stat}><View style={[s.iconPlate,{width:36,height:36,backgroundColor:brandSoft(color)}]}>
-        <Icon name={label===t.visits?'sessions':label===t.days?'bookings':label===t.total?'timer':'week'} color={color}/></View>
-        <View style={{flex:1,gap:4}}><Text style={s.metricSmall}>{value}</Text><Text style={s.muted}>{label}</Text></View></View>)}</View>}
+      [t.total,formatDuration(stats.seconds)],[t.average,formatDuration(stats.average)]].map(([label,value],i)=>{const tone=summaryCardTone(label,i);return (
+      <View key={label} style={[s.stat,{backgroundColor:tone.tint,borderColor:tone.border}]}><View style={{flex:1,minWidth:0,gap:2}}><Text style={{color:theme.muted,fontSize:11,lineHeight:15}}>{label}</Text><Text style={s.metricSmall}>{value}</Text></View>
+        <View style={[s.iconPlate,{width:32,height:32,borderRadius:16,backgroundColor:tone.soft}]}>
+        <Icon name={label===t.visits?'sessions':label===t.days?'bookings':label===t.total?'timer':'week'} size={20} color={tone.color}/></View></View>);})}</View>}
     {stats&&<Card title={t.sessionChart} icon="sessions" color={color}>
       <View accessibilityLabel={t.sessionChart} style={s.chart}>{chartDates.map(date=><View key={date} style={s.chartColumn}>
         <View style={{height:Math.max(3,100*(daily[date]||0)/max),backgroundColor:daily[date]?color:theme.border,borderTopLeftRadius:3,borderTopRightRadius:3}}/>
@@ -319,7 +320,7 @@ const s=StyleSheet.create({
   week:{flexDirection:'row',gap:6,justifyContent:'space-between'},
   day:{flex:1,maxWidth:48,aspectRatio:1,backgroundColor:theme.surfaceSoft,borderRadius:99,borderWidth:1,borderColor:theme.border,alignItems:'center',justifyContent:'center'},
   track:{height:8,backgroundColor:'#edf2f7',borderRadius:6,overflow:'hidden'},historyRow:{flexDirection:'row',alignItems:'center',gap:12,paddingTop:14,borderTopWidth:1,borderColor:'#eef2f6'},
-  grid:{flexDirection:'row',flexWrap:'wrap',gap:12},stat:{flexGrow:1,flexBasis:'45%',backgroundColor:theme.surface,borderRadius:theme.cardRadius,borderWidth:1,borderColor:theme.border,padding:16,gap:10,flexDirection:'row',alignItems:'center'},
+  grid:{flexDirection:'row',flexWrap:'wrap',gap:8},stat:{width:'48%',minWidth:0,flexGrow:0,flexShrink:1,minHeight:66,backgroundColor:theme.surface,borderRadius:12,borderWidth:1,borderColor:theme.border,paddingVertical:10,paddingHorizontal:12,gap:8,flexDirection:'row',alignItems:'center'},
   status:{flexDirection:'row',alignItems:'center',gap:4,paddingVertical:4,paddingHorizontal:8,borderRadius:99},
   chart:{height:112,flexDirection:'row',alignItems:'flex-end',gap:2,borderBottomWidth:1,borderColor:theme.border},
   chartColumn:{flex:1,minWidth:1,justifyContent:'flex-end'},

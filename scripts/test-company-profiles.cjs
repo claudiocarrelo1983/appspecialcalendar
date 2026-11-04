@@ -35,7 +35,7 @@ try{
     assert.equal(extensions.length,1);checks++;
     assert.equal(extensions[0].bundleIdentifier,c.ios.bundleIdentifier+'.WorkoutProgress');checks++;
     extensions[0].bundleIdentifier='company.WorkoutProgress';
-    assert(c.runtimeVersion.endsWith('-fitness2-auth1'));checks++;
+    assert(c.runtimeVersion.endsWith('-fitness3-auth1'));checks++;
     full.plugins=full.plugins.map(plugin=>{
       if(Array.isArray(plugin)&&plugin[0]==='expo-camera'){
         assert(plugin[1].cameraPermission.includes(result.name));checks++;

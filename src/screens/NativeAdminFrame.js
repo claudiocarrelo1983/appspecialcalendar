@@ -14,6 +14,8 @@ import { adminPageLabels } from '../utils/nativeAdminPages';
 import { menuCategoryIcon as menuIcon } from '../utils/nativeAdminNavigation';
 import companyAppConfig from '../utils/companyAppConfig';
 import theme, { brandSoft } from '../utils/gymUiTheme';
+import {summaryCardTone} from '../utils/summaryCardLayout';
+import NativeSubcategoryTabs from './NativeSubcategoryTabs';
 
 function Action({label,onPress,color,disabled,secondary=true}) {
   return <Pressable accessibilityRole="button" accessibilityState={{disabled:!!disabled}} disabled={disabled} onPress={onPress}
@@ -82,8 +84,9 @@ function NativePage({pages,admin,color,t}) {
       {page.notices?.map((notice,i)=><Text key={i} accessibilityLiveRegion="polite" style={s.error}>{notice}</Text>)}
       {!!pages.error&&<View style={s.card}><Text accessibilityLiveRegion="polite" style={s.error}>{t.error}</Text>
         <Action label={t.refresh} color={color} onPress={pages.refresh}/></View>}
-      {!!page.summary?.length&&<View style={s.summary}>{page.summary.map((item,i)=><View key={i} style={[s.stat,{backgroundColor:brandSoft(color,.06)}]}>
-        <Text heading style={[s.metric,{color}]}>{item.value}</Text><Text style={s.muted}>{item.label}</Text></View>)}</View>}
+      {!!page.summary?.length&&<View style={s.summary}>{page.summary.map((item,i)=>{const tone=summaryCardTone(item.label,i);return <View key={i} style={[s.stat,{backgroundColor:tone.tint,borderColor:tone.border}]}>
+        <View style={{flex:1,minWidth:0,gap:2}}><Text style={s.statLabel}>{item.label}</Text><Text heading style={s.metric}>{item.value}</Text></View>
+        <View style={[s.statIcon,{backgroundColor:tone.soft}]}><Icon name={['bookings','members','sessions','week'][i%4]} size={20} color={tone.color}/></View></View>;})}</View>}
       {!['dashboard','web'].includes(page.kind)&&<View style={s.searchBar}>
         <TextInput accessibilityLabel={t.search} placeholder={t.search} value={query} onChangeText={setQuery} returnKeyType="search"
           onSubmitEditing={searchField?apply:undefined} style={[s.input,s.flex]}/>
@@ -181,6 +184,7 @@ export default function NativeAdminFrame({pages,admin,children,onBack,brandColor
     {active&&<NativeAdminHeader pages={pages} t={t} color={color} onMenu={()=>setMenu('menu')} onBack={()=>{if(timer)pages.back();else onBack();}}
       backVisible={timer||admin.screen==='classes'||(!['dashboard','clients','catalog','memberships'].includes(pages.page.kind)&&!/^\/(?:company|preferences)(?:\/index)?\/?$/.test(new URL(pages.page.url).pathname))}
       onHome={()=>{const home=pages.document.footer.find(item=>new URL(item.url).pathname.startsWith('/dashboard-gym'));if(home)navigate(home.url);}}/>}
+    {active&&!timer&&<NativeSubcategoryTabs tree={pages.document.menuTree} url={pages.page.url} language={pages.document.language} color={color} onNavigate={navigate}/>}
     <View style={native||preparing?s.hidden:s.flex} pointerEvents={native||preparing?'none':'auto'} accessibilityElementsHidden={native||preparing}
       aria-hidden={native||preparing}
       importantForAccessibility={native||preparing?'no-hide-descendants':'auto'}>{children}</View>
@@ -237,8 +241,8 @@ const s=StyleSheet.create({flex:{flex:1},hidden:{position:'absolute',left:-10000
   title:{fontSize:18,color:theme.text},heading:{fontSize:25,color:theme.text,marginBottom:8},content:{padding:16,gap:14,paddingBottom:28},
   card:{backgroundColor:'#fff',borderRadius:20,padding:16,borderWidth:1,borderColor:theme.border,gap:12,marginBottom:12},
   action:{minHeight:44,borderRadius:14,padding:12,alignItems:'center',justifyContent:'center'},input:{minHeight:48,borderWidth:1,borderColor:theme.border,borderRadius:12,padding:12,color:theme.text,fontSize:16,justifyContent:'center'},
-  field:{gap:8},strong:{fontWeight:'600',color:theme.text},muted:{color:theme.muted,fontSize:13,lineHeight:21},summary:{flexDirection:'row',flexWrap:'wrap',gap:12,marginBottom:14},
-  stat:{minWidth:'45%',flexGrow:1,padding:16,borderRadius:18,gap:6},metric:{fontSize:28},badges:{flexDirection:'row',flexWrap:'wrap',gap:8},badge:{paddingHorizontal:10,paddingVertical:5,borderRadius:12,fontSize:11},
+  field:{gap:8},strong:{fontWeight:'600',color:theme.text},muted:{color:theme.muted,fontSize:13,lineHeight:21},summary:{flexDirection:'row',flexWrap:'wrap',gap:12,marginTop:16,marginBottom:14},
+  stat:{width:'48%',minWidth:0,flexGrow:0,flexShrink:1,minHeight:66,paddingVertical:10,paddingHorizontal:12,borderRadius:12,gap:8,flexDirection:'row',alignItems:'center',backgroundColor:'#fff',borderWidth:1,borderColor:theme.border},statLabel:{color:theme.muted,fontSize:11,lineHeight:15},statIcon:{width:32,height:32,borderRadius:16,alignItems:'center',justifyContent:'center'},metric:{fontSize:21,lineHeight:25},badges:{flexDirection:'row',flexWrap:'wrap',gap:8},badge:{paddingHorizontal:10,paddingVertical:5,borderRadius:12,fontSize:11},
   scheduleRow:{flexDirection:'row',alignItems:'center',gap:12,borderBottomWidth:1,borderColor:theme.border,paddingVertical:12},
   footer:{flexDirection:'row',alignItems:'center',paddingTop:38,marginTop:-28,paddingHorizontal:4,gap:2},
   footerBackground:{position:'absolute',top:28,left:0,right:0,bottom:0,backgroundColor:'#fff',borderTopWidth:1,borderColor:theme.border},

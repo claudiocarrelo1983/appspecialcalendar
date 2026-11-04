@@ -1,0 +1,143 @@
+/* Shared web presentation for the pages in gym-all.json and gym-client.json. */
+.gym-app-layout {
+  --gym-app-border:var(--gym-ui-border,#e4eaf2);
+  --gym-app-text:var(--gym-ui-text,#101b30);
+  --gym-app-muted:var(--gym-ui-muted,#718099);
+  --gym-app-soft:var(--gym-ui-surface-soft,#f1f5f9);
+  --gym-app-brand:var(--sc-primary,#198754);
+  --gym-app-brand-soft:rgba(var(--sc-primary-rgb,25,135,84),.08);
+  width:100%;max-width:none!important;margin-inline:0!important;
+  padding:20px 16px 28px!important;color:var(--gym-app-text);
+  font-family:var(--gym-ui-body-font,Poppins),sans-serif;font-size:14px;line-height:1.6;
+  min-width:0;box-sizing:border-box;
+}
+.gym-app-layout *, .gym-app-layout *::before, .gym-app-layout *::after {box-sizing:border-box;}
+.gym-app-layout :is(h1,h2,h3,h4,.card-title) {font-family:var(--gym-ui-heading-font,"Bricolage Grotesque"),sans-serif;color:var(--gym-app-text);line-height:1.25;}
+.gym-app-layout > .gym-canonical-page-heading {margin-bottom:20px;}
+.gym-app-layout :is(.card,.client-card-modern,.membership-card,.gym-class-card,.health-tools-card,.client-settings-section) {
+  background:#fff!important;border:1px solid var(--gym-app-border)!important;border-radius:20px!important;
+  box-shadow:none!important;overflow-wrap:anywhere;margin-bottom:16px;
+}
+.gym-app-layout .card-body {padding:16px!important;}
+.gym-app-layout :is(.card-header,.card-footer) {background:transparent;border-color:var(--gym-app-border);padding:16px;}
+.gym-app-layout .card-header:first-child {border-radius:20px 20px 0 0;}
+.gym-app-layout :is(.card .card,.card .client-settings-section) {margin-bottom:12px;box-shadow:none;}
+.gym-app-layout :is(.text-muted,.summary,.help-block,.form-text,.hint-block) {color:var(--gym-app-muted)!important;}
+.gym-app-layout :is(.form-control,.form-select,select:not([multiple])) {
+  min-height:48px;border:1px solid var(--gym-app-border);border-radius:12px!important;padding:11px 12px;
+  background-color:#fff;color:var(--gym-app-text);font:inherit;box-shadow:none;
+}
+/* Preserve the leading icon gutter after the shared control padding reset. */
+.gym-app-layout .input-group-modern {position:relative;min-width:0;}
+.gym-app-layout .input-group-modern :is(.form-control,.form-select,select) {padding-left:42px!important;}
+.gym-app-layout .input-group-modern > :is(i,.input-icon) {position:absolute;left:12px;top:24px;transform:translateY(-50%);width:20px;text-align:center;font-size:17px;line-height:20px;color:var(--gym-app-muted);pointer-events:none;z-index:2;}
+.gym-app-layout .input-group-modern .select2-container .select2-selection__rendered {padding-left:40px;}
+.gym-app-layout .input-group-modern .select2-container--multiple .select2-selection__rendered {padding-left:36px;}
+.gym-app-layout textarea.form-control {min-height:112px;resize:vertical;}
+.gym-app-layout :is(.form-control,.form-select):focus {border-color:var(--gym-app-brand);box-shadow:0 0 0 3px var(--gym-app-brand-soft);}
+.gym-app-layout :is(.form-group,.mb-3):has(> .form-control,> .form-select) {margin-bottom:16px;}
+.gym-app-layout :is(label,.control-label,.form-label) {font-size:13px;font-weight:600;margin-bottom:6px;}
+.gym-app-layout :is(.form-check-input,input[type=checkbox],input[type=radio]) {accent-color:var(--gym-app-brand);}
+.gym-app-layout .select2-container {max-width:100%;}
+.gym-app-layout .select2-container .select2-selection {min-height:48px;border-radius:12px!important;border-color:var(--gym-app-border);display:flex;align-items:center;}
+.gym-app-layout .select2-container .select2-selection__arrow {top:10px;}
+.gym-app-layout .btn {
+  min-height:44px;border-radius:14px!important;padding:10px 16px;font:inherit;font-weight:600;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;white-space:normal;vertical-align:middle;
+}
+.gym-app-layout .btn-sm {min-height:36px;padding:7px 11px;font-size:12px;}
+.gym-app-layout :is(.btn-primary,.btn-primary-modern) {background:var(--gym-app-brand)!important;border-color:var(--gym-app-brand)!important;color:#fff!important;}
+.gym-app-layout :is(.btn-reset-modern,.btn-light,.btn-outline-primary) {background:var(--gym-app-brand-soft)!important;border-color:transparent!important;color:var(--gym-app-brand)!important;}
+.gym-app-layout .btn:focus-visible,.gym-app-layout a:focus-visible {outline:2px solid var(--gym-app-brand);outline-offset:3px;}
+.gym-app-layout .btn:disabled,.gym-app-layout .btn.disabled {opacity:.45;}
+.gym-app-layout .badge {border-radius:20px;padding:7px 10px;font-size:11px;font-weight:600;white-space:normal;}
+.gym-app-layout :is(.alert,.pagination .page-link) {border-radius:12px;}
+.gym-app-layout .pagination {display:flex;flex-wrap:wrap;gap:6px;}
+.gym-app-layout .pagination .page-link {min-width:40px;min-height:40px;display:flex;align-items:center;justify-content:center;border-color:var(--gym-app-border);color:var(--gym-app-brand);}
+.gym-app-layout .pagination .active .page-link {background:var(--gym-app-brand);color:#fff;border-color:var(--gym-app-brand);}
+.gym-app-layout .table {color:var(--gym-app-text);border-color:var(--gym-app-border);font-size:13px;}
+.gym-app-layout .table > :not(caption) > * > * {padding:12px;vertical-align:middle;}
+.gym-app-layout .table th {font-size:12px;color:var(--gym-app-muted);font-weight:600;}
+.gym-app-layout .table-responsive {border-radius:16px;}
+.gym-app-layout :is(.gym-page-header__actions,.health-tools-header nav) {gap:8px!important;}
+.gym-app-layout .gym-app-filter-toolbar {display:flex;align-items:center;gap:10px;margin:0 0 16px;}
+.gym-app-layout .gym-app-search {flex:1;min-width:0;}
+.gym-app-layout .gym-app-filter-button {flex-shrink:0;background:var(--gym-app-brand-soft);color:var(--gym-app-brand);border:0;}
+.gym-app-layout .gym-app-filter-panel {padding:16px;margin-bottom:16px;border:1px solid var(--gym-app-border);border-radius:20px;background:#fff;}
+.gym-app-layout [hidden] {display:none!important;}
+.gym-app-layout .detail-view {background:#fff;border:1px solid var(--gym-app-border);border-radius:20px;overflow:hidden;}
+.gym-app-layout .gym-client-hero {background:#fff!important;border:1px solid var(--gym-app-border)!important;border-radius:20px;color:var(--gym-app-text)!important;box-shadow:none!important;}
+.gym-app-layout .gym-client-hero :is(h1,h2,h3,p,.gym-client-name,.gym-client-meta) {color:inherit!important;}
+@media(min-width:992px){
+  .gym-app-layout form:not([method=get]):not([method=GET]) {max-width:none;}
+}
+@media(max-width:767.98px){
+  .gym-app-layout {padding:16px 12px 24px!important;}
+  .gym-app-layout .card-body {padding:16px!important;}
+  .gym-app-layout .gym-app-card-table,.gym-app-layout .gym-app-card-table tbody {display:block;width:100%;min-width:0!important;max-width:100%;border:0;background:transparent;}
+  .gym-app-layout .gym-app-card-table thead {position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;}
+  .gym-app-layout .gym-app-card-table tr[data-gym-record] {display:block;padding:16px;margin-bottom:12px;border:1px solid var(--gym-app-border);border-radius:20px;background:#fff;}
+  .gym-app-layout .gym-app-card-table tr[data-gym-record] > td {display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;padding:8px 0!important;border:0;background:transparent;box-shadow:none;overflow-wrap:anywhere;}
+  .gym-app-layout .gym-app-card-table td[data-gym-label]::before {content:attr(data-gym-label);color:var(--gym-app-muted);font-size:12px;flex:0 0 34%;}
+  .gym-app-layout .gym-app-card-table td.gym-app-actions {justify-content:flex-start;gap:8px;padding-top:12px!important;}
+  .gym-app-layout .gym-app-card-table td.gym-app-actions::before {display:none;}
+  .gym-app-layout .gym-app-card-table .btn {min-height:44px;}
+  .gym-app-layout .detail-view,.gym-app-layout .detail-view tbody,.gym-app-layout .detail-view tr {display:block;width:100%;}
+  .gym-app-layout .detail-view tr {padding:12px 16px;border-bottom:1px solid var(--gym-app-border);}
+  .gym-app-layout .detail-view tr:last-child {border-bottom:0;}
+  .gym-app-layout .detail-view :is(th,td) {display:block;width:100%;padding:3px 0!important;border:0;}
+  .gym-app-layout .gym-app-filter-toolbar .btn {padding-inline:14px;}
+}
+@media(prefers-reduced-motion:reduce){.gym-app-layout *{scroll-behavior:auto!important;transition:none!important;}}
+
+/* Gym content fills the available workspace column on every menu/action page. */
+.gym-app-layout :is(.container,.container-fluid,.profile-page,.performance-shell,.client-performance,.classes-schedule-page,.company-update,.company-locations-page,.payments-index,.payments-setup-page,.membership-shell,.gym-client-classpacks-shell,.client-settings-page,.health-tools-shell,.dashboard-gym-page,.gym-client-portal) {width:100%;max-width:none!important;margin-inline:0!important;}
+.gym-app-layout form {max-width:none!important;}
+
+/* Embedded pages use the same content rhythm as the native app frame. */
+html.__scNativeAdminFrame body,html.sc-native-shell body {padding-bottom:0!important;background:#fff!important;}
+html.__scNativeAdminFrame .main-content,html.sc-native-shell .main-content {width:100%!important;max-width:none!important;margin-left:0!important;margin-top:0!important;}
+html.__scNativeAdminFrame .page-content,html.sc-native-shell .page-content {padding-top:0!important;padding-bottom:0!important;min-height:0!important;}
+html.__scNativeAdminFrame .gym-app-layout,html.sc-native-shell .gym-app-layout {padding:16px!important;font-size:14px;line-height:1.5;}
+.gym-app-layout :is(.nav-tabs,.nav-pills,.client-settings-nav) {display:flex;flex-wrap:nowrap;overflow-x:auto;gap:8px;border:0;margin:0 0 16px;padding:0 0 6px;max-width:100%;scrollbar-width:thin;}
+.gym-app-layout :is(.nav-tabs,.nav-pills) .nav-item {flex:0 0 auto;}
+.gym-app-layout :is(.nav-tabs,.nav-pills) .nav-link,.gym-app-layout .client-settings-nav a {display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border:1px solid var(--gym-app-border)!important;border-radius:14px!important;background:var(--gym-app-soft);padding:10px 16px;color:var(--gym-app-muted);font-size:13px;font-weight:600;white-space:nowrap;}
+.gym-app-layout :is(.nav-tabs,.nav-pills) .nav-link.active,.gym-app-layout .client-settings-nav a.active {background:var(--gym-app-brand-soft)!important;color:var(--gym-app-brand)!important;border-color:transparent!important;}
+.gym-app-layout .nav-tabs-custom .nav-link::after {display:none;}
+.gym-app-layout .tab-content {margin-top:16px!important;}
+.gym-app-layout .card-header-tabs {margin-inline:0;}
+.gym-app-layout .modal-content {border:1px solid var(--gym-app-border)!important;border-radius:24px!important;box-shadow:0 12px 40px #101b3020;}
+.gym-app-layout :is(.modal-header,.modal-footer) {padding:16px;border-color:var(--gym-app-border);gap:8px;}
+.gym-app-layout .modal-body {padding:16px;}
+.gym-app-layout .modal-title {font-size:20px;font-family:var(--gym-ui-heading-font,"Bricolage Grotesque"),sans-serif;}
+.gym-app-layout .btn-close {width:24px;height:24px;padding:10px;box-sizing:content-box;}
+.gym-app-layout :is(.client-info-hero,.client-info-panel,.client-info-stat,.debt-card) {background:#fff!important;border:1px solid var(--gym-app-border)!important;border-radius:20px!important;box-shadow:none!important;}
+.gym-app-layout .client-info-hero,.gym-app-layout .debt-card {padding:16px!important;margin-bottom:16px!important;}
+.gym-app-layout .client-info-avatar {width:56px;height:56px;border-radius:18px;background:var(--gym-app-brand-soft);color:var(--gym-app-brand);font-size:22px;font-weight:600;}
+.gym-app-layout .client-info-stat {padding:16px;min-height:84px;}
+.gym-app-layout .client-info-stat strong {font-size:25px;line-height:1.25;font-family:var(--gym-ui-heading-font,"Bricolage Grotesque"),sans-serif;}
+.gym-app-layout .client-info-panel-title {padding:16px;gap:12px;border-color:var(--gym-app-border);}
+.gym-app-layout .client-info-panel-title span {width:36px;height:36px;border-radius:12px;background:var(--gym-app-brand-soft);color:var(--gym-app-brand);}
+.gym-app-layout .client-info-panel-title h5 {font-size:18px;font-weight:700;color:var(--gym-app-text);}
+.gym-app-layout .client-info-row {padding:12px 16px;border-color:var(--gym-app-border);gap:12px;}
+.gym-app-layout .client-info-row > span {font-size:12px;color:var(--gym-app-muted);text-transform:none;font-weight:400;}
+.gym-app-layout .client-info-row > strong {font-size:14px;font-weight:600;color:var(--gym-app-text);}
+.gym-app-layout .gym-app-record-actions {margin-bottom:16px;}
+.gym-app-layout .gym-app-record-actions > .d-flex {justify-content:flex-start!important;}
+.gym-app-layout .gym-app-record-actions p {display:flex;flex-wrap:wrap;gap:8px;margin:0;}
+.gym-app-layout .gym-app-record-actions p > span:empty {display:none;}
+@media(max-width:767.98px){
+ .gym-app-layout .client-view-tabs {padding-top:0!important;}
+ .gym-app-layout .client-info-row {grid-template-columns:1fr;gap:4px;}
+ .gym-app-layout .client-info-row > strong {text-align:left;}
+ .gym-app-layout .modal-dialog {margin:16px;}
+ .gym-app-layout .modal-dialog-scrollable {height:calc(100% - 32px);}
+}
+
+.gym-app-layout :is(.form-control,.form-select){font-size:16px;}
+html.__scNativeAdminFrame .gym-canonical-page-heading .gym-page-heading__title,html.sc-native-shell .gym-canonical-page-heading .gym-page-heading__title {font-size:25px;line-height:1.25;}
+html.__scNativeAdminFrame .gym-page-heading__category,html.sc-native-shell .gym-page-heading__category {font-size:11px;}
+
+.gym-app-layout .gym-schedule-week-nav {display:inline-flex;align-items:stretch;gap:6px;}
+.gym-app-layout .gym-schedule-week-nav > .btn {display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;margin-left:0!important;border-radius:12px!important;line-height:1.25;}
+.gym-app-layout .gym-schedule-week-nav > .gym-schedule-week-label {min-width:72px;padding-inline:16px;text-align:center;white-space:nowrap;}

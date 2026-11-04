@@ -6,6 +6,27 @@ public class SpecialCalendarHealthModule: Module {
 
   public func definition() -> ModuleDefinition {
     Name("SpecialCalendarHealth")
+    AsyncFunction("workoutWritePermission") { () -> String in
+      guard HKHealthStore.isHealthDataAvailable() else { return "unavailable" }
+      switch self.store.authorizationStatus(for: HKObjectType.workoutType()) {
+      case .sharingAuthorized: return "authorized"
+      case .sharingDenied: return "denied"
+      default: return "undetermined"
+      }
+    }
+    AsyncFunction("requestWorkoutWritePermission") { (promise: Promise) in
+      guard HKHealthStore.isHealthDataAvailable() else { promise.resolve("unavailable"); return }
+      let type = HKObjectType.workoutType()
+      let status = self.store.authorizationStatus(for: type)
+      if status != .notDetermined {
+        promise.resolve(status == .sharingAuthorized ? "authorized" : "denied"); return
+      }
+      // Ask only from the explicit Start action, for workout writing only.
+      self.store.requestAuthorization(toShare: [type], read: []) { _, error in
+        if error != nil { promise.reject("health_authorization_failed", "Could not request workout permission"); return }
+        promise.resolve(self.store.authorizationStatus(for: type) == .sharingAuthorized ? "authorized" : "denied")
+      }
+    }
     AsyncFunction("updateWorkoutActivity") { (record: [String: Any], promise: Promise) in
       if #available(iOS 16.2, *) {
         Task {
@@ -22,8 +43,9 @@ public class SpecialCalendarHealthModule: Module {
         promise.reject("invalid_workout", "Invalid workout"); return
       }
       let type = HKObjectType.workoutType()
-      self.store.requestAuthorization(toShare: [type], read: []) { requested, error in
-        guard requested, error == nil, self.store.authorizationStatus(for: type) == .sharingAuthorized else {
+      // Saving and retrying never opens a permission sheet in the background.
+      do {
+        guard self.store.authorizationStatus(for: type) == .sharingAuthorized else {
           promise.reject("permission", "Allow saving workouts in Apple Health"); return
         }
         let end = Date(timeIntervalSince1970: timestamp / 1000)

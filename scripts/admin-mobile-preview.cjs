@@ -119,7 +119,7 @@ const environment=path.join(out,'environment.jsx');
 fs.writeFileSync(path.join(out,'constants.js'),`export default {expoConfig:{name:${JSON.stringify(company.title)}}};`);
 fs.writeFileSync(path.join(out,'scanner.jsx'),"export {Scanner as default} from './environment.jsx';");
 fs.writeFileSync(path.join(out,'calendar-actions.js'),"export const createClassCalendarHandler=()=>async()=>{alert('Calendar opens on the installed phone. This is a sample-data preview.');};");
-fs.writeFileSync(path.join(out,'timer-alerts.js'),"export const cancelTimerAlert=()=>Promise.resolve();export default {permission:async()=>true,sync:async()=>{},finish:async()=>{},cancel:async()=>{}};");
+fs.writeFileSync(path.join(out,'timer-alerts.js'),"export const cancelTimerAlert=()=>Promise.resolve();export default {permission:async()=>true,cue:async()=>{},sync:async()=>{},finish:async()=>{},cancel:async()=>{}};");
 fs.writeFileSync(path.join(out,'fitness-calendar.js'),"let rows=[{id:'sample',title:'Sample class',startDate:'2026-11-02T09:00:00Z',endDate:'2026-11-02T10:00:00Z'}];export const fitnessCalendar=()=>({list:async()=>rows,remove:async id=>{rows=rows.filter(row=>row.id!==id);}});");
 async function main(){
 await esbuild.build({entryPoints:[path.join(out,'entry.jsx')],bundle:true,outfile:path.join(out,'app.js'),platform:'browser',format:'iife',

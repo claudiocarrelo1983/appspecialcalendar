@@ -153,6 +153,7 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
         const opened = {id,
           title: typeof content.title === 'string' ? content.title.slice(0,200) : '',
           body: typeof content.body === 'string' ? content.body.slice(0,2000) : ''};
+        if(content.data?.type==='class-reminder')opened.classReminder=true;
         openedNotification.current=invitation?null:opened;
         pendingOpen.current = {...opened, at:tappedAt, url:target.href};
         onOpenUrl(target.href);
@@ -181,6 +182,12 @@ export default function usePushNotifications(webViewRef, startUrl, onOpenUrl) {
     currentUrl.current = event.nativeEvent.url || startUrl;
     publish();
     syncWithServer(state.current);
+    if(openedNotification.current?.classReminder){
+      // The authenticated reminder endpoint has resolved the occurrence. Its
+      // native class popup supplies current details and permitted cancellation.
+      const resolved=classLinkTarget(currentUrl.current,startUrl);
+      if(resolved&&new URL(resolved).searchParams.has('schedule_id'))openedNotification.current=null;
+    }
     if (openedNotification.current && new URL(currentUrl.current).origin === origin) {
       // Display the original notification text even when a class has finished.
       webViewRef.current?.injectJavaScript(`(function(){

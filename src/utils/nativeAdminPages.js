@@ -1,4 +1,6 @@
 import { sameGymOrigin } from './nativeGymCore';
+import { summaryCardLayoutScript } from './summaryCardLayout';
+import { subcategoryTabsScript } from './subcategoryTabs';
 
 export const ADMIN_PAGES_MESSAGE = 'sc.adminPages';
 export function adminListUrl(value, base) {
@@ -29,9 +31,11 @@ const SOURCE = String.raw`function(c) {
     documentUrl:location.href,documentId:window.__scAdminPagesDocumentId}));
   const text = el => (el?.textContent || '').replace(/\s+/g,' ').trim().slice(0,500);
   const all = (root, selector) => Array.from(root.querySelectorAll(selector));
+  const fieldLabel = (form,el) => el.getAttribute('aria-label') || text(el.labels?.[0]) || text(el.closest('label'))
+    || text(form.querySelector('label[for="'+el.id.replace(/[^a-zA-Z0-9_-]/g,'')+'"]')) || el.placeholder || el.name;
   const safe = (value, base) => { try { if(typeof value!=='string'||!value.trim()||value.trim()==='#')return null;const u = new URL(value, base); return u.origin === c.origin && !u.username && !u.password && !u.hash ? u.href : null; } catch { return null; } };
   const readOnly = el => !el.hasAttribute('data-method') && !el.hasAttribute('data-confirm') && !/\/(?:delete|remove|approve|reject|logout|switch-company)(?:[/?]|$)/i.test(el.getAttribute('href') || '');
-  const links = (root, selector, base, include = () => true) => all(root,selector).filter(el => el.dataset.permissionBlocked !== '1' && readOnly(el) && include(el)).map(el => ({
+  const links = (root, selector, base, include = () => true) => all(root,selector).filter(el => !el.closest('[data-permission-blocked="1"]') && readOnly(el) && include(el)).map(el => ({
     label:text(el) || el.getAttribute('title') || el.getAttribute('aria-label') || '', url:safe(el.getAttribute('href'),base)
   })).filter(item => item.url && item.label).filter((item,i,list) => list.findIndex(x => x.url === item.url && x.label === item.label) === i).slice(0,160);
   function snapshot(root, base, live) {
@@ -86,7 +90,7 @@ const SOURCE = String.raw`function(c) {
         const fields=all(form,'input,select,textarea').filter(el=>el.name&&!el.disabled&&!['hidden','submit','button'].includes(el.type));
         if (fields.length && fields.every(el=>!el.multiple && !['radio'].includes(el.type))) {
           page.kind='form'; page.form={id:control(form),fields:fields.map((el,index)=>({id:control(el),key:(el.id||el.name)+':'+index,
-            label:text(form.querySelector('label[for="'+el.id.replace(/[^a-zA-Z0-9_-]/g,'')+'"]')) || el.placeholder || el.name,
+            label:fieldLabel(form,el),
             type:el.tagName==='SELECT'?'select':el.tagName==='TEXTAREA'?'textarea':el.type,
             value:el.type==='checkbox'?el.checked:el.value,required:el.required,readOnly:el.readOnly,
             options:el.tagName==='SELECT'?all(el,'option').filter(o=>!o.disabled).slice(0,200).map(o=>({value:o.value,label:text(o)})):[]
@@ -97,11 +101,28 @@ const SOURCE = String.raw`function(c) {
     page.submitting = live && window.__scAdminFormSubmitting === true;
     return page;
   }
+  function gymAdminDocument() {
+    const top=document.querySelector('#page-topbar');
+    if(!top||/^\/(?:$|(?:site\/)?(?:login|logout)(?:-mobile)?(?:\/|$)|form-signup(?:\/|$))/.test(location.pathname))return false;
+    const level=String(top.querySelector('#page-header-user-dropdown')?.getAttribute('data-user-level')||'').trim().toLowerCase();
+    const client=level==='client'||level==='cliente'||!!document.querySelector('.mobile-bottom-nav a[href*="dashboard-gym-client"]');
+    if(client)return false;
+    const gymHome=links(document,'.mobile-bottom-nav a[href],.vertical-menu a[href]',location.href)
+      .some(item=>/^\/dashboard-gym(?:\/index)?\/?$/.test(new URL(item.url).pathname));
+    const signedIn=/^[a-f0-9]{64}$/.test(top.getAttribute('data-fitness-account')||'')
+      && !!top.querySelector('#page-header-user-dropdown');
+    return gymHome||signedIn;
+  }
   function publishDocument() {
-    if (!document.querySelector('#page-topbar') || !document.querySelector('.mobile-bottom-nav a[href*="dashboard-gym"]')
-      || document.querySelector('.mobile-bottom-nav a[href*="dashboard-gym-client"]')) {send({event:'document',active:false,
-        client:!!document.querySelector('.mobile-bottom-nav a[href*="dashboard-gym-client"]')});return;}
-    const footer=links(document,'.mobile-bottom-nav > a[href]',location.href);
+    if (!gymAdminDocument()) {send({event:'document',active:false,
+      client:!!document.querySelector('.mobile-bottom-nav a[href*="dashboard-gym-client"]')||['client','cliente'].includes(String(document.querySelector('#page-header-user-dropdown')?.getAttribute('data-user-level')||'').toLowerCase())});return;}
+    // A settings/support page may render the generic footer. Rebuild only the
+    // existing gym tabs from links the current server document permits.
+    const navigation=links(document,'.mobile-bottom-nav > a[href],.vertical-menu a[href]',location.href);
+    const footer=['dashboard-gym','clients-list','gym-classes','memberships'].flatMap(route=>{
+      const item=navigation.find(item=>new URL(item.url).pathname.replace(/\/index\/?$|\/$/g,'')==='/'+route);
+      return item?[item]:[];
+    });
     const page=snapshot(document,location.href,true);
     const register=el=>{const id=window.__scAdminPageRevision+':'+window.__scAdminPageControls.size;window.__scAdminPageControls.set(id,el);return id;};
     const top=document.querySelector('#page-topbar');
@@ -191,8 +212,7 @@ const SOURCE = String.raw`function(c) {
   function ready() {
     try {publishDocument();}
     catch {
-      if(document.querySelector('#page-topbar')&&document.querySelector('.mobile-bottom-nav a[href*="dashboard-gym"]')
-        &&!document.querySelector('.mobile-bottom-nav a[href*="dashboard-gym-client"]'))
+      if(gymAdminDocument())
         send({event:'error',code:'snapshot_failed',url:location.href});
     }
   }
@@ -216,7 +236,11 @@ const SOURCE = String.raw`function(c) {
       const style=document.createElement('style');style.id='__scNativeAdminFrameCss';
       style.textContent='html.__scNativeAdminFrame #page-topbar,html.__scNativeAdminFrame .mobile-bottom-nav,html.__scNativeAdminFrame .vertical-menu,html.__scNativeAdminFrame footer.footer,html.__scNativeAdminFrame .footer-space,html.__scNativeAdminFrame .footer-space-mobile{display:none!important}html.__scNativeAdminFrame body{padding-bottom:0!important}html.__scNativeAdminFrame .main-content{width:100%!important;margin-left:0!important;margin-top:0!important}html.__scNativeAdminFrame .page-content{padding-top:0!important;padding-bottom:0!important}html.__scNativeAdminFrame .gym-app-layout{padding:16px!important}';
       (document.head||document.documentElement).appendChild(style);
-    }return;
+    }
+    // Optional page styling must never stop the native frame from hiding web chrome.
+    if(c.enabled){try{${summaryCardLayoutScript}}catch(error){send({event:'layout-error',code:'summary_layout'});}}
+    if(c.enabled){try{${subcategoryTabsScript}}catch(error){send({event:'layout-error',code:'subcategory_layout'});}}
+    return;
   }
   if (c.action==='change') {
     const el=window.__scAdminPageControls?.get(c.id);

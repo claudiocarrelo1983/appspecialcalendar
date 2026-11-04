@@ -1,4 +1,10 @@
 const en = {
+  healthUnavailable:'Apple Health is not available on this device. Workouts stay saved on this phone.',
+  timerPhaseLimit:'Some round alerts could not be scheduled because this app has many pending reminders. The workout completion alert is still scheduled.',
+  healthAutoHint:'New workouts save to Apple Health automatically after you allow workout access. You can change this permission in Health settings.',
+  healthPermissionHint:'Saved on this phone. Allow workout writing for this app in Apple Health to save there automatically.',
+  healthSaveRetry:'Saved on this phone. Apple Health saving will be retried when the app is active.',
+  healthSaving:'Saving to Apple Health…',healthUpdateRequired:'Update the app to enable automatic Apple Health saving.',
   paused:'Paused',setDone:'Set complete',roundLimit:'Choose between 1 and 30 sets.',alarmPermission:'Allow Alarms & reminders in phone settings for precise background timer alerts.',synced:'Synced',savedOffline:'Saved on this phone',saveHealth:'Save to Apple Health',healthSaved:'Saved to Apple Health',healthSaveError:'Could not save. Allow workout writing in Apple Health and try again.',liveActivityUnavailable:'Lock Screen progress is unavailable. The timer still runs.',running:'Running',offlineWorkouts:'Offline workout timer & history',offlineWorkoutHelp:'Saved on this phone. Workouts sync after you sign back into this account online.',
   reconnecting:'Reconnecting…',reconnectHelp:'We could not reopen this page. Check your connection and try again.',
   language:'Language',
@@ -12,7 +18,7 @@ const en = {
   today: "Today's session", inside: 'Inside the gym', outside: 'Outside the gym',
   checkin: 'Check in', checkout: 'Check out', entry: 'Checked in at', duration: 'Time at the gym',
   previous: 'Previous visit', noPrevious: 'No previous visits', week: 'Your week',
-  training: 'training days', goal: 'Weekly goal', upcoming: 'Upcoming bookings',
+  training: 'training days', goal: 'Weekly goal', upcoming: 'Upcommings',
   noBookings: 'No upcoming bookings. Find your next class in Bookings.',
   noPass: 'No active membership pass is available. Contact your club.',
   active: 'Active', upcomingPass: 'Starts soon', validUntil: 'Valid until', showReception: 'Show at reception',
@@ -39,6 +45,12 @@ const en = {
   resetFilters:'Reset filters', weekRemaining:'training days left to reach your goal', streak:'weeks in a row',
 };
 const pt = {
+  healthUnavailable:'A Saúde Apple não está disponível neste dispositivo. Os treinos continuam guardados neste telemóvel.',
+  timerPhaseLimit:'Alguns alertas de séries não puderam ser agendados porque esta app tem muitos lembretes pendentes. O alerta de conclusão do treino continua agendado.',
+  healthAutoHint:'Os novos treinos são guardados automaticamente na Saúde Apple após permitir o acesso aos treinos. Pode alterar esta permissão nas definições da Saúde.',
+  healthPermissionHint:'Guardado neste telemóvel. Permita a escrita de treinos desta app na Saúde Apple para guardar automaticamente.',
+  healthSaveRetry:'Guardado neste telemóvel. A gravação na Saúde Apple será tentada novamente quando a app estiver ativa.',
+  healthSaving:'A guardar na Saúde Apple…',healthUpdateRequired:'Atualize a app para ativar a gravação automática na Saúde Apple.',
   paused:'Em pausa',setDone:'Série concluída',roundLimit:'Escolha entre 1 e 30 séries.',alarmPermission:'Permita Alarmes e lembretes nas definições do telemóvel para alertas precisos em segundo plano.',synced:'Sincronizado',savedOffline:'Guardado neste telemóvel',saveHealth:'Guardar na Saúde Apple',healthSaved:'Guardado na Saúde Apple',healthSaveError:'Não foi possível guardar. Permita a escrita de treinos na Saúde Apple e tente novamente.',liveActivityUnavailable:'O progresso no ecrã bloqueado não está disponível. O cronómetro continua a funcionar.',running:'Em curso',offlineWorkouts:'Cronómetro e histórico offline',offlineWorkoutHelp:'Guardado neste telemóvel. Os treinos são sincronizados quando voltar a iniciar sessão nesta conta com ligação à Internet.',
   reconnecting:'A restabelecer ligação…',reconnectHelp:'Não foi possível reabrir esta página. Verifique a ligação e tente novamente.',
   language:'Idioma',
