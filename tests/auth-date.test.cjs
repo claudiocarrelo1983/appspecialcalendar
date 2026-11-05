@@ -16,7 +16,7 @@ test('calendar uses Monday-first weeks and follows actual month length and serve
 test('birth date opens a calendar instead of a keyboard and selects an ISO date through year/day controls',()=>{
  const slots=[];let cursor=0,changed='',dismissed=0;
  const react={createElement:(type,props,...children)=>({type,props:{...props,children}}),useState(value){const i=cursor++;if(!(i in slots))slots[i]=value;return [slots[i],value=>slots[i]=value];}};
- const Screen=load('screens/NativeDateField.js',{react,'react-native':{Keyboard:{dismiss:()=>dismissed++},Modal:'Modal',Pressable:'Pressable',ScrollView:'ScrollView',View:'View',StyleSheet:{create:value=>value}},'react-native-safe-area-context':{useSafeAreaInsets:()=>({bottom:0})},'./NativeGymTypography':{Text:'Text',Icon:'Icon'},'../utils/gymUiTheme':{__esModule:true,default:{}},'../utils/authDate':dates}).default;
+ const Screen=load('screens/NativeDateField.js',{react,'react-native':{Keyboard:{dismiss:()=>dismissed++},Modal:'Modal',Pressable:'Pressable',ScrollView:'ScrollView',View:'View',StyleSheet:{create:value=>value}},'react-native-safe-area-context':{useSafeAreaInsets:()=>({bottom:0})},'./NativeGymTypography':{LoadingIndicator:'ActivityIndicator',Text:'Text',Icon:'Icon'},'../utils/gymUiTheme':{__esModule:true,default:{}},'../utils/authDate':dates}).default;
  const props={value:'2000-02-29',label:'Data de nascimento',language:'pt',color:'#198754',onChange:value=>changed=value};
  const nodes=tree=>!tree||typeof tree!=='object'?[]:[tree,...(tree.props?.children||[]).flat(Infinity).flatMap(nodes)];
  const render=()=>{cursor=0;return nodes(Screen(props));};

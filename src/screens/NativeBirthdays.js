@@ -1,5 +1,6 @@
+import {LoadingIndicator as ActivityIndicator} from './NativeGymTypography';
 import React,{useEffect,useState} from 'react';
-import {ActivityIndicator,Modal,Pressable,ScrollView,StyleSheet,View} from 'react-native';
+import {Modal,Pressable,ScrollView,StyleSheet,View} from 'react-native';
 import {Text,Icon} from './NativeGymTypography';
 import theme,{brandSoft} from '../utils/gymUiTheme';
 

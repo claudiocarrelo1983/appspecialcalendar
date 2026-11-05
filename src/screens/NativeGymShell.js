@@ -1,5 +1,6 @@
+import {LoadingIndicator as ActivityIndicator} from './NativeGymTypography';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, PixelRatio, Platform, Pressable, RefreshControl, ScrollView,
+import { Alert, Image, Modal, PixelRatio, Platform, Pressable, RefreshControl, ScrollView,
   StyleSheet, useWindowDimensions, View } from 'react-native';
 import {useFonts} from 'expo-font';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

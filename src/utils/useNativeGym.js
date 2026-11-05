@@ -171,7 +171,11 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
     try{if(route==='bookings'&&typeof params.classUrl==='string')invitation=classLinkTarget(new URL(params.classUrl,startUrl).href,startUrl);}catch{}
     const url=invitation||new URL(target, startUrl).href;
     setWebTarget(route==='bookings'?null:url);
-    if(webViewRef.current && sameGymOrigin(documentUrl.current,startUrl)) {
+    if(route==='notifications') {
+      // Keep React's source in sync with the inbox document. A forced revision
+      // also handles returning here after an in-page navigation to class details.
+      setWebViewUrl(url,{reload:true});
+    } else if(webViewRef.current && sameGymOrigin(documentUrl.current,startUrl)) {
       webViewRef.current.injectJavaScript('location.assign('+JSON.stringify(url)+');true;');
     } else setWebViewUrl(url);
   }, [startUrl, changeScreen, setWebViewUrl, webViewRef]);

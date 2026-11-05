@@ -10,7 +10,7 @@ function load(file, mocks) {
   } }); return exports;
 }
 const core = load('utils/nativeAdminCore.js', { './nativeGymCore': {} });
-function render(admin) {
+function render(admin,extra={}) {
   const react = { createElement: (type, props, ...children) => ({ type, props: { ...props, children } }),
     useState: value => [value, () => {}], useRef: value => ({ current: value }), useEffect() {} };
   const native = Object.fromEntries(['ActivityIndicator','Alert','FlatList','Image','Modal','Pressable','RefreshControl','TextInput','View'].map(name => [name, name]));
@@ -22,17 +22,22 @@ function render(admin) {
     '../utils/calendarAlerts':{showCalendarFailure(){}},'../utils/nativeCalendar':{createClassCalendarHandler:()=>async()=>{}},
     'react-native': { ...native, StyleSheet: { create: value => value } },
     'react-native-safe-area-context': { useSafeAreaInsets: () => ({ top: 0, bottom: 0 }) },
-    './NativeGymTypography': { Text: 'Text' }, '../utils/nativeAdminCore': core,
+    './NativeGymTypography': {LoadingIndicator:'ActivityIndicator', Text: 'Text' }, '../utils/nativeAdminCore': core,
     '../utils/companyAppConfig': () => ({ color: '#198754', siteUrl: 'https://c20260531125358085.specialcalendar.com' }),
     '../utils/gymUiTheme': { __esModule: true, default: {}, brandSoft: () => '' },
   });
-  return Shell({ admin, children: { type: 'WebView', props: {} } });
+  return Shell({ admin, children: { type: 'WebView', props: {} },...extra });
 }
 function nodes(tree) { return !tree || typeof tree !== 'object' ? [] : [tree, ...(tree.props?.children || []).flat(Infinity).flatMap(nodes)]; }
 
+test('member-owned web content cannot display the legacy staff navigation or class overlay',()=>{
+ const tree=render({context:{language:'pt',classes:[]},screen:'classes',onDashboard:true,rosterOpen:true},{enabled:false});
+ assert.equal(tree.type,'WebView');assert.equal(nodes(tree).length,1);
+});
+
 test('schedule filter matches web day/week navigation, Today, Monday strip and class selection',()=>{
   const react={createElement:(type,props,...children)=>({type,props:{...props,children}}),useRef:value=>({current:value}),useEffect(){}};
-  const filter=load('screens/NativeScheduleFilter.js',{react,'react-native':{View:'View',Pressable:'Pressable',ScrollView:'ScrollView',StyleSheet:{create:v=>v}},'./NativeGymTypography':{Text:'Text'},'../utils/gymUiTheme':{}});
+  const filter=load('screens/NativeScheduleFilter.js',{react,'react-native':{View:'View',Pressable:'Pressable',ScrollView:'ScrollView',StyleSheet:{create:v=>v}},'./NativeGymTypography':{LoadingIndicator:'ActivityIndicator',Text:'Text'},'../utils/gymUiTheme':{}});
   const dates=[],classes=[];
   const tree=nodes(filter.default({date:'2026-12-31',today:'2026-10-30',classes:[{code:'muay',label:'Muay Thai'}],classCode:'muay',color:'#198754',onDate:value=>dates.push(value),onClass:value=>classes.push(value)}));
   const press=label=>tree.find(node=>node.props.accessibilityLabel===label).props.onPress();

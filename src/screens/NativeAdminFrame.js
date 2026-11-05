@@ -1,5 +1,6 @@
+import {LoadingIndicator as ActivityIndicator} from './NativeGymTypography';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
+import { Alert, FlatList, Image, KeyboardAvoidingView, Modal, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, TextInput, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Text } from './NativeGymTypography';
@@ -146,7 +147,7 @@ export function MenuBranch({item,navigate,color,currentUrl,depth=0}) {
     </>:item.url?<MenuRow label={item.label} icon={depth===0?menuIcon(item):null} color={color} onPress={()=>navigate(item.url)}/>:<Text heading style={s.menuSection}>{item.label}</Text>}
   </View>;
 }
-export default function NativeAdminFrame({pages,admin,children,onBack,brandColor}) {
+export default function NativeAdminFrame({pages,admin,children,onBack,brandColor,enabled=true}) {
   const {siteUrl,color:defaultColor,pagecode}=companyAppConfig(), insets=useSafeAreaInsets();
   const color=brandColor||defaultColor;
   const t=adminPageLabels(pages.document?.language),[menu,setMenu]=useState(null),[scan,setScan]=useState(false);
@@ -178,6 +179,8 @@ export default function NativeAdminFrame({pages,admin,children,onBack,brandColor
     admin.showDashboard();pages.navigate(url);
   };
   const pressAction=action=>{setMenu(null);Alert.alert(action.label,t.confirm,[{text:t.cancel,style:'cancel'},{text:action.label,onPress:()=>pages.invoke(action.id)}]);};
+  // An authenticated member shell owns its own header/footer. Never nest staff chrome.
+  if(!enabled)return children;
   return <View style={[s.flex,{backgroundColor:'#f5f7fa'}]}>
     {preparing&&<View testID="native-admin-startup" style={s.startup}>
       <Image source={companyLogoImage()} resizeMode="contain" style={s.startupLogo}/><Text heading style={s.heading}>{t.adminLabel}</Text>
@@ -237,7 +240,7 @@ export default function NativeAdminFrame({pages,admin,children,onBack,brandColor
     </Modal>
     {active&&timerAccountKey&&<NativeFitnessCalendar key={timerAccountKey} accountKey={timerAccountKey} language={pages.document.language} color={color} visible={calendarOpen} onClose={()=>setCalendarOpen(false)}/>}
     {active&&<NativeAdminScanner visible={scan} config={pages.document.scanner} base={siteUrl} t={t} color={color} onClose={()=>setScan(false)} onOpen={url=>{admin.showDashboard();pages.openWeb(url,{reload:true});}}/>}
-    {active&&pages.busy&&<View testID="native-admin-loading" pointerEvents="none" style={s.progress}><ActivityIndicator size="large" color={color}/></View>}
+    {active&&pages.busy&&<View testID="native-admin-loading" pointerEvents="none" style={s.progress}><ActivityIndicator color={color}/></View>}
   </View>;
 }
 const s=StyleSheet.create({flex:{flex:1},hidden:{position:'absolute',left:-10000,width:'100%',height:'100%',opacity:0},

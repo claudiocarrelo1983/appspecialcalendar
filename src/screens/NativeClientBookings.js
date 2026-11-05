@@ -1,5 +1,6 @@
+import {LoadingIndicator as ActivityIndicator} from './NativeGymTypography';
 import React,{useEffect,useMemo,useRef,useState} from 'react';
-import {ActivityIndicator,Alert,Modal,Pressable,RefreshControl,ScrollView,StyleSheet,Switch,View} from 'react-native';
+import {Alert,Modal,Pressable,RefreshControl,ScrollView,StyleSheet,Switch,View} from 'react-native';
 import {Text,Icon} from './NativeGymTypography';
 import NativeScheduleFilter from './NativeScheduleFilter';
 import NativeClassShare from './NativeClassShare';
@@ -24,18 +25,30 @@ export default function NativeClientBookings({bookings,language='en',color,base,
     {text:pt?'Voltar':'Back',style:'cancel'},{text:pt?'Confirmar':'Confirm',onPress:()=>bookings.perform(action)}]);
   const calendarOpen=row=>calendar.current(row,language,accountKey).catch(error=>showCalendarFailure(error,language));
   const bookingButton=(action,style)=>{const removing=['cancel-booking','leave-waitlist'].includes(action.kind);return <Button key={action.kind} style={style} label={action.label} secondary={removing} color={removing?theme.danger:color} disabled={bookings.busy||!action.enabled} onPress={()=>confirm(action)}/>;};
+  const unavailableLabel=row=>row.status==='finished'?(pt?'Aula terminada':'Class finished')
+    :row.booked?(pt?'Reservada':'Booked')
+    :row.waitlisted?(pt?'Lista de espera':'Waitlisted')
+    :/abrem|not open|open on|opens at/i.test(row.reason||'')?(pt?'Reservas por abrir':'Bookings not open')
+    :row.status==='in_progress'?(pt?'Aula em curso':'Class in progress')
+    :row.available===0?(pt?'Aula completa':'Class full')
+    :(pt?'Reservas encerradas':'Bookings closed');
   const details=row=><View testID={'class-details-'+row.key} style={s.details}><Text style={s.description}>{row.description|| (pt?'Sem descrição adicional.':'No additional description.')}</Text><Text heading style={s.section}>{pt?'Participantes':'Participants'} · {row.participants.length}</Text>{row.participants.map((person,index)=><View key={index} style={s.person}><Icon name="profile" color={color}/><Text>{person.name}</Text></View>)}</View>;
   const controls=row=><View style={s.actions}>
     <Pressable accessibilityRole="button" accessibilityLabel={pt?'Adicionar ao calendário':'Add to calendar'} style={[s.utility,{backgroundColor:'#e9f4ff'}]} onPress={()=>calendarOpen(row)}><Icon name="bookings" color="#1264a3" size={22}/><Text style={{position:'absolute',fontSize:10,left:21,top:19,color:'#1264a3',backgroundColor:'#e9f4ff'}}>+</Text></Pressable>
     <Pressable accessibilityRole="button" accessibilityLabel={pt?'Partilhar aula':'Share class'} style={[s.utility,{backgroundColor:brandSoft(color)}]} onPress={()=>{setDetail(null);setShare(row);}}><ShareIcon color={color}/></Pressable>
-    {row.actions[0]&&bookingButton(row.actions[0],{flex:1,minWidth:0})}
+    {row.actions[0]?bookingButton(row.actions[0],{flex:1,minWidth:0}):row.status!=='finished'&&<Button
+      label={unavailableLabel(row)} accessibilityLabel={unavailableLabel(row)+(row.reason?'. '+row.reason:'')}
+      disabled secondary color={theme.muted} style={{flex:1,minWidth:0,opacity:1,backgroundColor:theme.surfaceSoft}}/>}
   </View>;
   const card=(row,expanded=false)=><View style={s.card}>
-    <View style={s.top}><Text style={{color,fontWeight:'700'}}>{row.start_time} – {row.end_time}</Text><Text style={[s.status,{color:row.status==='finished'?theme.muted:color,backgroundColor:row.status==='finished'?theme.surfaceSoft:brandSoft(color)}]}>{row.booked?(pt?'Reservada':'Booked'):row.waitlisted?(pt?'Lista de espera':'Waitlisted'):({finished:pt?'Terminada':'Finished',in_progress:pt?'Em curso':'In progress',upcoming:pt?'Próxima':'Upcoming'}[row.status])}</Text></View>
+    <View style={s.top}><Text style={{color,fontWeight:'700'}}>{row.start_time} – {row.end_time}</Text>{row.status!=='finished'&&<Text style={[s.status,{color,backgroundColor:brandSoft(color)}]}>{row.booked?(pt?'Reservada':'Booked'):row.waitlisted?(pt?'Lista de espera':'Waitlisted'):({in_progress:pt?'Em curso':'In progress',upcoming:pt?'Próxima':'Upcoming'}[row.status])}</Text>}</View>
     <Pressable accessibilityRole="button" onPress={()=>setDetail(row.key)}><Text heading style={s.classTitle}>{row.class_name}</Text></Pressable>
     <Text style={s.muted}>{[row.coach,row.room].filter(Boolean).join(' · ')}</Text>
     {expanded&&<Text style={s.muted}>{row.date}</Text>}
-    {!expanded&&<Pressable accessibilityRole="button" accessibilityLabel={(pt?'Detalhes: ':'Details: ')+row.class_name} accessibilityState={{expanded:!!detailsOpen[row.key]}} onPress={()=>setDetailsOpen(previous=>({...previous,[row.key]:!previous[row.key]}))} style={s.detailsToggle}><Text style={{color,fontWeight:'600',fontSize:13}}>{pt?'Detalhes':'Details'}</Text><View accessible={false} style={[s.detailsChevron,{borderColor:color,transform:[{rotate:detailsOpen[row.key]?'225deg':'45deg'}],marginTop:detailsOpen[row.key]?4:-4}]}/></Pressable>}
+    {(!expanded||row.status==='finished')&&<View style={{flexDirection:'row',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
+      {!expanded&&<Pressable accessibilityRole="button" accessibilityLabel={(pt?'Detalhes: ':'Details: ')+row.class_name} accessibilityState={{expanded:!!detailsOpen[row.key]}} onPress={()=>setDetailsOpen(previous=>({...previous,[row.key]:!previous[row.key]}))} style={s.detailsToggle}><Text style={{color,fontWeight:'600',fontSize:13}}>{pt?'Detalhes':'Details'}</Text><View accessible={false} style={[s.detailsChevron,{borderColor:color,transform:[{rotate:detailsOpen[row.key]?'225deg':'45deg'}],marginTop:detailsOpen[row.key]?4:-4}]}/></Pressable>}
+      {row.status==='finished'&&<Button label={pt?'Terminada':'Finished'} disabled color={theme.danger||'#dc2626'} style={{minWidth:112,marginLeft:'auto',opacity:1}}/>}
+    </View>}
     {(expanded||detailsOpen[row.key])&&details(row)}
     <View style={s.top}><Text>{pt?'Lugares disponíveis':'Available places'}</Text><Text style={{fontWeight:'700'}}>{row.capacity>0?row.available+' / '+row.capacity:'∞'}</Text></View>
     <View style={s.track}><View style={{height:6,backgroundColor:color,borderRadius:4,width:(row.capacity?Math.min(100,Math.max(0,row.registered/row.capacity*100)):0)+'%'}}/></View>
@@ -47,7 +60,12 @@ export default function NativeClientBookings({bookings,language='en',color,base,
   const knownErrors=['connection','offline','server','request_failed','invalid_response','navigating','forbidden','push_permission','csrf_unavailable'];
   const errorText=bookings.error==='push_permission'?(pt?'Ative as notificações para receber alertas de abertura.':'Enable notifications to receive booking alerts.'):
     knownErrors.includes(bookings.error)?(pt?'Não foi possível atualizar as aulas. Tente novamente.':'Could not update classes. Try again.'):bookings.error;
-  if(!page)return <View style={s.loading}><Text heading style={s.title}>{pt?'Reservar uma aula':'Book a class'}</Text>{bookings.busy?<ActivityIndicator color={color}/>:<><Text style={s.muted}>{errorText|| (pt?'A carregar aulas…':'Loading classes…')}</Text>{!!bookings.reference&&<Text style={s.muted}>{bookings.reference}</Text>}<Button label={pt?'Tentar novamente':'Try again'} color={color} onPress={()=>bookings.load()}/>{bookings.error==='forbidden'&&onSignIn&&<Button label={pt?'Iniciar sessão':'Sign in'} secondary color={color} onPress={onSignIn}/>}</>}</View>;
+  if(!page)return <View testID="native-client-bookings-startup" style={s.loading}>
+    {!bookings.error?<View testID="native-client-bookings-spinner" style={{alignItems:'center',justifyContent:'center',gap:14}}>
+      <ActivityIndicator color={color}/>
+      <Text accessibilityLiveRegion="polite" style={[s.muted,{textAlign:'center',fontSize:14}]}>{pt?'A carregar aulas…':'Loading classes…'}</Text>
+    </View>:<><Text heading style={s.title}>{pt?'Reservar uma aula':'Book a class'}</Text><Text style={s.muted}>{errorText}</Text>{!!bookings.reference&&<Text style={s.muted}>{bookings.reference}</Text>}<Button label={pt?'Tentar novamente':'Try again'} color={color} onPress={()=>bookings.load()}/>{bookings.error==='forbidden'&&onSignIn&&<Button label={pt?'Iniciar sessão':'Sign in'} secondary color={color} onPress={onSignIn}/>}</>}
+  </View>;
   return <View style={{flex:1}} testID="native-client-bookings"><ScrollView ref={scroll} contentContainerStyle={s.content} keyboardShouldPersistTaps="handled" refreshControl={<RefreshControl refreshing={bookings.busy} tintColor={color} onRefresh={()=>bookings.load()}/>}>
     <Text heading style={s.title}>{pt?'Reservar uma aula':'Book a class'}</Text>
     {page.family.length>1&&<Button secondary label={(pt?'Reservar para: ':'Booking for: ')+(page.family.find(person=>person.guid===page.clientGuid)?.name||'')} color={color} disabled={bookings.busy} onPress={()=>setFamilyOpen(true)}/>}

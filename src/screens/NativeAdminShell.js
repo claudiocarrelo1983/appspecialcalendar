@@ -1,5 +1,6 @@
+import {LoadingIndicator as ActivityIndicator} from './NativeGymTypography';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
+import { Alert, FlatList, Image, Modal, Pressable, RefreshControl, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon, Text } from './NativeGymTypography';
 import { ShareIcon } from './NativeAdminHeader';
@@ -24,7 +25,7 @@ function Button({ label, onPress, disabled, secondary, color, style, accessibili
     <Text style={[s.buttonText, { color: secondary ? color : '#fff' }]}>{label}</Text>
   </Pressable>;
 }
-export default function NativeAdminShell({ admin, framed = false, children, brandColor, accountKey }) {
+export default function NativeAdminShell({ admin, framed = false, children, brandColor, accountKey, enabled=true }) {
   const insets = useSafeAreaInsets(), { color: defaultColor, siteUrl } = companyAppConfig();
   const color = brandColor || defaultColor;
   const t = adminTranslations(admin.context?.language), native = admin.screen === 'classes' && !!admin.context;
@@ -81,6 +82,7 @@ export default function NativeAdminShell({ admin, framed = false, children, bran
       <Button color={color} style={{ flex: 1 }} label={t.manage} onPress={() => admin.loadRoster(Number(item.schedule_id), item.date)}/>
     </View>
   </View>;
+  if(!enabled)return children;
   return <View style={s.root}>
     {!!shareItem&&<NativeClassShare item={shareItem} language={shareItem.language||admin.context?.language} color={color}
       search={admin.searchShareClients} send={admin.sendClassInvitation} onClose={()=>{setShareItem(null);admin.closeShareClass?.();}}/>}

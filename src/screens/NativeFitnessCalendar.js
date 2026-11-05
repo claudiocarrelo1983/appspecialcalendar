@@ -1,5 +1,6 @@
+import {LoadingIndicator as ActivityIndicator} from './NativeGymTypography';
 import React,{useEffect,useRef,useState} from 'react';
-import {ActivityIndicator,Alert,Modal,Pressable,ScrollView,StyleSheet,View} from 'react-native';
+import {Alert,Modal,Pressable,ScrollView,StyleSheet,View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Text,Icon} from './NativeGymTypography';
 import {fitnessCalendar} from '../utils/fitnessCalendar';

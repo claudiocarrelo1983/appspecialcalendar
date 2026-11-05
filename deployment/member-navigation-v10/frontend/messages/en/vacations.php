@@ -1,0 +1,22 @@
+<?php
+return [
+    'company' => 'Company',
+    'vacations' => 'Vacations',
+    'vacations_create' => 'Schedule vacation',
+    'vacations_update' => 'Edit vacation',
+    'team_member' => 'Team member',
+    'from_date' => 'Start date',
+    'to_date' => 'End date',
+    'from_time' => 'Start time',
+    'to_time' => 'End time',
+    'approved' => 'Approved',
+    'select_team_member' => 'Select a team member',
+    'select_from_time' => 'Select a start time',
+    'select_to_time' => 'Select an end time',
+    'select_approved' => 'Select approval status',
+    'yes' => 'Yes',
+    'no' => 'No',
+    'save_button' => 'Save',
+    'back_button' => 'Back',
+    'date_to_is_bigger_that_from' => 'The end date and time must be on or after the start date and time.',
+];

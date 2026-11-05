@@ -4,7 +4,7 @@ const links=load('classLinks.js'),core=load('clientBookingsCore.js'),api=load('n
 const base='https://ftx.example';
 function page(date,rows,company='ftx'){return {success:true,data:{revision:'native-client-bookings-v1',date,serverTime:date+'T09:00:00Z',companyCode:company,clientGuid:'self',rows,classFilters:[],family:[],alerts:[],waivers:[],history:[]}};}
 test('invitation states use current server bookings and group invitations for the same date',async()=>{
- const date='2026-11-05',queries=[],row={key:'7:'+date,schedule_id:7,date,booked:true,actions:[]};
+ const date='2026-11-05',queries=[],row={key:'7:'+date,schedule_id:7,date,booked:true,booking_id:1,booking_client_guid:'self',actions:[]};
  const rows=[1,2].map(id=>({id,bookingUrl:'/dashboard-gym-client/index?company_code=ftx&date='+date+'&schedule_id=7'}));
  const states=await api.notificationBookings(rows,base,async(...args)=>{queries.push(args);return page(date,[row]);});
  assert.equal(queries.length,1);assert.equal(states[1].row.booked,true);assert.equal(states[2].row,row);
@@ -21,4 +21,14 @@ test('booking action always follows server booking state rather than the read fl
  const book={kind:'book',enabled:true},cancel={kind:'cancel-booking',enabled:true};
  assert.equal(api.notificationBookingAction({read:true,booked:false,actions:[book]}),book);
  assert.equal(api.notificationBookingAction({read:false,booked:true,actions:[cancel]}),cancel);
+});
+test('a read invitation is not booked without an exact recipient booking record',async()=>{
+ const date='2026-11-05',notice={id:1,read:true,bookingUrl:'/dashboard-gym-client/index?company_code=ftx&date='+date+'&schedule_id=7'};
+ const row={key:'7:'+date,schedule_id:7,date,booked:false,actions:[{kind:'book',enabled:true}]};
+ let states=await api.notificationBookings([notice],base,async()=>page(date,[row]));
+ assert.equal(states[1].row.booked,false);assert.equal(api.notificationBookingAction(states[1].row).kind,'book');
+ for(const evidence of [{booked:true},{booked:true,booking_id:4,booking_client_guid:'someone-else'}]){
+  states=await api.notificationBookings([notice],base,async()=>page(date,[{...row,...evidence}]));
+  assert.equal(states[1].row,null);assert.equal(states[1].error,'invalid_response');
+ }
 });

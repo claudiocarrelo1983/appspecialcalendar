@@ -1,10 +1,11 @@
+import {LoadingIndicator as ActivityIndicator} from '../screens/NativeGymTypography';
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 export default function LoadingOverlay() {
   return (
     <View style={styles.container}>
-      <ActivityIndicator size="large" />
+      <ActivityIndicator />
     </View>
   );
 }

@@ -174,7 +174,7 @@ test('native auth language selector translates the form, navigation and legal li
  const translations=load('utils/nativeAuthTranslations.js'),draft=load('utils/nativeLoginDraft.js'),legal=load('utils/authLegalLinks.js');
  const react={createElement:(type,props,...children)=>({type,props:{...props,children}}),useEffect(){},useRef:value=>({current:value}),useState:value=>[value,()=>{}]};
  const screen=load('screens/NativeAuthScreen.js',{react,'react-native':Object.fromEntries(['ActivityIndicator','KeyboardAvoidingView','Modal','Pressable','ScrollView','TextInput','View'].map(key=>[key,key]).concat([['Platform',{OS:'ios'}],['StyleSheet',{create:value=>value}],['Linking',{openURL:async()=>{}}]])),
-   'react-native-safe-area-context':{useSafeAreaInsets:()=>({bottom:0})},'./NativeGymTypography':{Text:'Text',Icon:'Icon'},'./NativeCompanyLogo':'Logo','./NativeDateField':'DateField',
+   'react-native-safe-area-context':{useSafeAreaInsets:()=>({bottom:0})},'./NativeGymTypography':{LoadingIndicator:'ActivityIndicator',Text:'Text',Icon:'Icon'},'./NativeCompanyLogo':'Logo','./NativeDateField':'DateField',
    '../utils/gymUiTheme':{__esModule:true,default:{},brandSoft:()=>''},'../utils/nativeAuthCore':core,'../utils/nativeLoginDraft':draft,'expo-constants':{__esModule:true,default:{expoConfig:{name:'FTX'}}},'../utils/authLegalLinks':legal,'../utils/nativeAuthTranslations':translations}).default;
  const nodes=tree=>!tree||typeof tree!=='object'?[]:[tree,...(tree.props?.children||[]).flat(Infinity).flatMap(nodes)];
  let chosen;

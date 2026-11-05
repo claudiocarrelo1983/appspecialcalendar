@@ -31,6 +31,7 @@ export default function NativeAdminHeader({pages,t,color,onMenu,onHome,onBack,ba
   const title=panel==='language'?t.language:panel==='notifications'?t.notifications:t.birthdays;
   const language=header.language?.value?.split('-')[0]?.toUpperCase()||pages.document.language?.toUpperCase();
   const open=url=>{setPanel(null);if(url)pages.navigate(url);};
+  const inboxUrl=new URL('/group-notifications',pages.document.page.url).href;
   // No public store listing is configured yet. Never share a website as the app.
   const storeUrl=null;
   const share=()=>{if(storeUrl)Share.share({message:storeUrl}).catch(()=>Alert.alert(t.share,t.error));};
@@ -87,6 +88,10 @@ export default function NativeAdminHeader({pages,t,color,onMenu,onHome,onBack,ba
             </Pressable>)}
           </>}
         </ScrollView>
+        {panel==='notifications'&&<Pressable testID="native-admin-view-all-notifications" accessibilityRole="button" accessibilityLabel={t.viewAllNotifications}
+          onPress={()=>{setPanel(null);pages.openWeb(inboxUrl,{reload:true});}} style={[s.notificationFooter,{backgroundColor:brandSoft(color,.07)}]}>
+          <Text style={{color,fontWeight:'600',textAlign:'center'}}>{t.viewAllNotifications}</Text>
+        </Pressable>}
       </View></View>
     </Modal>
   </>;
@@ -97,6 +102,7 @@ const s=StyleSheet.create({appBar:{backgroundColor:'#fff',borderBottomWidth:1,bo
   language:{fontSize:16,color:theme.text},menuIcon:{fontSize:26,color:theme.muted},badge:{position:'absolute',top:-2,right:2,borderRadius:99,minWidth:19,minHeight:19,paddingHorizontal:4,backgroundColor:theme.danger,alignItems:'center',justifyContent:'center'},badgeText:{fontSize:11,color:'#fff'},
   overlay:{flex:1,backgroundColor:'#0005',justifyContent:'flex-end'},sheet:{maxHeight:'85%',backgroundColor:'#fff',borderTopLeftRadius:24,borderTopRightRadius:24},sheetHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',padding:16,borderBottomWidth:1,borderColor:theme.border},
   title:{fontSize:22,color:theme.text},content:{padding:16,gap:12},languageOption:{minHeight:48,padding:14,borderRadius:14,flexDirection:'row',alignItems:'center',justifyContent:'space-between'},
+  notificationFooter:{minHeight:50,paddingHorizontal:18,paddingVertical:15,alignItems:'center',justifyContent:'center',borderTopWidth:1,borderColor:theme.border,flexShrink:0},
   notice:{flexDirection:'row',alignItems:'flex-start',gap:12,padding:16,borderRadius:18,borderWidth:1,borderColor:theme.border},iconPlate:{padding:10,borderRadius:14},noticeTitle:{fontSize:17,color:theme.text},body:{fontSize:14,color:theme.muted,lineHeight:22},meta:{fontSize:11,color:theme.muted,lineHeight:18},empty:{padding:24,color:theme.muted,textAlign:'center'},error:{padding:12,color:theme.warning},
   shareIcon:{width:19,height:19,transform:[{scale:.8}]},shareLine:{position:'absolute',left:3,height:1.5,width:13,backgroundColor:theme.muted},shareDot:{position:'absolute',width:6,height:6,borderRadius:3,borderWidth:1.5,borderColor:theme.muted,backgroundColor:theme.surfaceSoft},
   chevronBox:{width:19,height:19,alignItems:'center',justifyContent:'center'},chevron:{width:9,height:9,borderRightWidth:2,borderBottomWidth:2,borderColor:theme.muted,transform:[{translateY:-2},{rotate:'45deg'}]},

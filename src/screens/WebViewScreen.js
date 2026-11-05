@@ -1,5 +1,6 @@
+import {LoadingIndicator as ActivityIndicator} from './NativeGymTypography';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, BackHandler, Linking, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Alert, BackHandler, Linking, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 import NativeGymShell from './NativeGymShell';
@@ -507,8 +508,8 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
   <View ref={screenRef} style={styles.container} onLayout={measureBottomSpace} collapsable={false}>
     <View style={nativeAuth.active?styles.authWeb:styles.container} pointerEvents={nativeAuth.active?'none':'auto'} accessibilityElementsHidden={nativeAuth.active} importantForAccessibility={nativeAuth.active?'no-hide-descendants':'auto'}>
     <NativeGymShell gym={nativeGym} bottomExtension={bottomExtension} brandColor={companyColor} bookings={clientBookings} sharing={nativeAdmin}>
-    <NativeAdminFrame pages={adminPages} admin={nativeAdmin} onBack={onAndroidBackPress} brandColor={companyColor}>
-    <NativeAdminShell admin={nativeAdmin} framed={!!adminPages.document} brandColor={companyColor} accountKey={fitnessAccountKey}>
+    <NativeAdminFrame enabled={!nativeGym.data} pages={adminPages} admin={nativeAdmin} onBack={onAndroidBackPress} brandColor={companyColor}>
+    <NativeAdminShell enabled={!nativeGym.data} admin={nativeAdmin} framed={!!adminPages.document} brandColor={companyColor} accountKey={fitnessAccountKey}>
     <WebView
       ref={webViewRef}
       key={`${webViewUrl}:${sourceRevision}:${classLinkRevision}:${recovery.revision}`}

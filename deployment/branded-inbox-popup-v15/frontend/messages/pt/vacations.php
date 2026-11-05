@@ -1,0 +1,22 @@
+<?php
+return [
+    'company' => 'Empresa',
+    'vacations' => 'Férias',
+    'vacations_create' => 'Marcar férias',
+    'vacations_update' => 'Editar férias',
+    'team_member' => 'Colaborador',
+    'from_date' => 'Data inicial',
+    'to_date' => 'Data final',
+    'from_time' => 'Hora inicial',
+    'to_time' => 'Hora final',
+    'approved' => 'Aprovado',
+    'select_team_member' => 'Selecione um colaborador',
+    'select_from_time' => 'Selecione a hora inicial',
+    'select_to_time' => 'Selecione a hora final',
+    'select_approved' => 'Selecione o estado de aprovação',
+    'yes' => 'Sim',
+    'no' => 'Não',
+    'save_button' => 'Guardar',
+    'back_button' => 'Voltar',
+    'date_to_is_bigger_that_from' => 'A data e hora finais devem ser iguais ou posteriores à data e hora iniciais.',
+];

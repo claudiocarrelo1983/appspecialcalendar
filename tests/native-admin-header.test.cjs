@@ -8,7 +8,7 @@ function harness(file,extra={}){
     useEffect(fn,deps){const i=cursor++,previous=slots[i];if(!previous||deps.some((value,index)=>value!==previous[index]))effects.push(fn);slots[i]=deps;}};
   const native=Object.fromEntries(['View','Pressable','Image','Modal','ScrollView','Switch','ActivityIndicator','FlatList','KeyboardAvoidingView','RefreshControl','TextInput'].map(value=>[value,value]));
   const mocks={react,'react-native':{...native,Alert:{alert(){}},Share:{share:()=>Promise.resolve()},StyleSheet:{create:value=>value},Platform:{OS:'android'}},
-    'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:0,bottom:0})},'./NativeGymTypography':{Icon:'Icon',Text:'Text'},
+    'react-native-safe-area-context':{useSafeAreaInsets:()=>({top:0,bottom:0})},'./NativeGymTypography':{LoadingIndicator:'ActivityIndicator',Icon:'Icon',Text:'Text'},
     '../utils/nativeCompanyBranding':{companyLogoImage:()=>1},'../utils/nativeAdminNavigation':{menuCategoryIcon:()=> 'home',userLevelLabel:level=>level?'Admin':''},'../utils/gymUiTheme':{__esModule:true,default:{},brandSoft:()=>''},
     './NativeSubcategoryTabs':'SubcategoryTabs','../utils/summaryCardLayout':{summaryCardTone:()=>({})},'./NativeCompanyLogo':'CompanyLogo','./NativeFitnessCalendar':'FitnessCalendar','./NativeAdminScanner':'Scanner','./NativeAdminHeader':'Header','./NativeWorkoutTimer':'Timer','../utils/useAdminTimerAccount':()=>null,'../utils/nativeGymTranslations':()=>({}),'expo-clipboard':{},'../utils/nativeAdminPages':{},'../utils/companyAppConfig':()=>({siteUrl:'https://club.example',pagecode:'club',color:'#198754'}),...extra};
   const {code}=babel.transformSync(fs.readFileSync(path.join(__dirname,'../src/screens',file),'utf8'),{babelrc:false,configFile:false,plugins:['@babel/plugin-transform-react-jsx','@babel/plugin-transform-modules-commonjs']});
@@ -16,6 +16,14 @@ function harness(file,extra={}){
   return {exports,mocks,render:(component,props)=>{cursor=0;const tree=component(props);while(effects.length)effects.shift()();return tree;}};
 }
 function nodes(tree){return !tree||typeof tree!=='object'?[]:[tree,...(tree.props?.children||[]).flat(Infinity).flatMap(nodes)];}
+
+test('an active client shell suppresses stale staff header, footer and More cog',()=>{
+ const h=harness('NativeAdminFrame.js',{'../utils/nativeAdminPages':{adminPageLabels:()=>({})}});
+ const child={type:'WebView',props:{}},page={url:'https://club.example/group-notifications',kind:'web'};
+ const pages={document:{page,header:{user:{level:'team'}},footer:[],menuTree:[],accountActions:[]},page,startup:'active',busy:false};
+ const result=h.render(h.exports.default,{enabled:false,pages,admin:{screen:'web'},children:child});
+ assert.equal(result,child);assert.equal(nodes(result).length,1);
+});
 test('busy admin loader fills the frame instead of occupying footer layout space',()=>{
  const h=harness('NativeAdminFrame.js',{'../utils/nativeAdminPages':{adminPageLabels:()=>({})}});
  const page={url:'https://club.example/dashboard-gym',kind:'web'};
@@ -70,6 +78,17 @@ test('birthday button badge counts only today and remains visible after opening 
   tree=nodes(h.render(h.exports.default,props));assert.equal(tree.find(node=>node.props.label==='birthdays').props.count,2);
   const upcoming={...pages,document:{...pages.document,header:{birthdays:{rows:[{today:false}]}}}};
   assert.equal(nodes(h.render(h.exports.default,{...props,pages:upcoming})).find(node=>node.props.label==='birthdays').props.count,0);
+});
+test('Team and admin notification panels have a fixed bottom link to the signed-in inbox',()=>{
+ for(const level of ['team','admin'])for(const language of ['en','pt']){
+  const h=harness('NativeAdminHeader.js'),opened=[],changes=[],label=language==='pt'?'Ver todas as notificações':'View all notifications';
+  const props={pages:{document:{language,page:{url:'https://club.example/dashboard-gym'},header:{user:{level},notifications:{count:1,rows:[]}}},openWeb:(...args)=>opened.push(args),change:(...args)=>changes.push(args)},t:{...t,viewAllNotifications:label},color:'#198754'};
+  let tree=nodes(h.render(h.exports.default,props));tree.find(n=>n.props.label==='notifications').props.onPress();tree=nodes(h.render(h.exports.default,props));
+  const link=tree.find(n=>n.props.testID==='native-admin-view-all-notifications');assert.equal(link.props.accessibilityLabel,label);
+  const scroll=tree.find(n=>n.type==='ScrollView');assert.ok(!nodes(scroll).includes(link),'Inbox link remains below the scrolling rows');
+  link.props.onPress();assert.equal(opened[0][0],'https://club.example/group-notifications');assert.equal(opened[0][1].reload,true);assert.equal(changes.length,0);
+  assert.equal(nodes(h.render(h.exports.default,props)).find(n=>n.type==='Modal').props.visible,false);
+ }
 });
 
 test('native form preserves an unsaved draft while a notification snapshot refreshes its opaque control IDs',()=>{

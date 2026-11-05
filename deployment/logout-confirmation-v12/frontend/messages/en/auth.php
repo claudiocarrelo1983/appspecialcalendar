@@ -1,0 +1,28 @@
+<?php
+// Keep authentication copy reliable even when generated catalogues are incomplete.
+return [
+    'subdomain_mobile_sign_in' => 'Sign in',
+    'password_reset_link_invalid' => 'This password reset link is invalid or has expired. Request a new link to continue.',
+    'password_reset_request_new' => 'Request a new reset link',
+    'password_reset_completed' => 'Your new password has been saved. You can now sign in.',
+    'password_reset_save' => 'Save new password',
+    'password_reset_title' => 'Reset password',
+    'signup_form_expired' => 'Your signup form expired. Please fill in the refreshed form and submit it again.',
+    'signup_ready_to_login' => 'Your account is ready with a 15-day free trial. You can now log in.',
+    'Login' => 'Login',
+    'login' => 'Login',
+    'login_label_username_2' => 'Username or email',
+    'login_label_password_2' => 'Password',
+    'login_button_2' => 'Login',
+    'login_block_dont_have_account_question' => 'Do not have an account?',
+    'login_block_forgot_password_2' => 'Forgot your password?',
+    'show_password' => 'Show password',
+    'hide_password' => 'Hide password',
+    'register' => 'Register',
+    'login_question' => 'Already have an account? Log in',
+    'resend_request_password_reset_email_title' => 'Enter your email to request password recovery.',
+    'resend_request_password_reset_email_success_message' => 'Check your email for password recovery instructions.',
+    'verify_email_message_error' => 'Could not send the email. Please try again.',
+    'submit_button' => 'Submit',
+    'email' => 'Email address',
+];

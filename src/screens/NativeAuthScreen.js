@@ -1,5 +1,6 @@
+import {LoadingIndicator as ActivityIndicator} from './NativeGymTypography';
 import React,{useEffect,useRef,useState} from 'react';
-import {ActivityIndicator,KeyboardAvoidingView,Linking,Modal,Platform,Pressable,ScrollView,StyleSheet,TextInput,View} from 'react-native';
+import {KeyboardAvoidingView,Linking,Modal,Platform,Pressable,ScrollView,StyleSheet,TextInput,View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Text,Icon} from './NativeGymTypography';
 import NativeCompanyLogo from './NativeCompanyLogo';

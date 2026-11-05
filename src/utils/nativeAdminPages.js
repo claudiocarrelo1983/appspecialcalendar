@@ -361,7 +361,7 @@ export function adminPageLabels(language) {
     settings:'Abrir definições',invalidQr:'Este QR não pertence a um sócio deste clube.',scanAgain:'Ler novamente',save:'Guardar',
     empty:'Não há resultados.',loading:'A carregar…',error:'Não foi possível carregar. Tente novamente.',confirm:'Confirmar ação?',account:'Conta',
     details:'Detalhes',dashboard:'Resumo',schedule:'Horário de aulas',cancel:'Cancelar',close:'Fechar',refresh:'Atualizar',back:'Voltar',
-    language:'Idioma',notifications:'Notificações',birthdays:'Aniversários',share:'Partilhar inscrição',markRead:'Marcar como lida',markUnread:'Marcar como não lida',
+    language:'Idioma',notifications:'Notificações',viewAllNotifications:'Ver todas as notificações',birthdays:'Aniversários',share:'Partilhar inscrição',markRead:'Marcar como lida',markUnread:'Marcar como não lida',
     emptyNotifications:'Sem notificações.',emptyBirthdays:'Sem aniversários.',company:'Empresa',copy:'Copiar código da empresa',copied:'Copiado',retry:'Tentar novamente',
     adminLabel:'Administração',overview:'O clube hoje',records:'registos',loadingApp:'A preparar a administração…',setupError:'Não foi possível abrir esta área.',
     happyBirthday:'Parabéns!',happyBirthdayBody:'Desejamos-lhe um excelente dia de aniversário!',signIn:'Iniciar sessão',logout:'Terminar sessão',openEditor:'Abrir editor',editorInfo:'Este formulário tem ferramentas adicionais. Abra o editor para continuar.',shareShort:'Partilhar',reference:'Referência'}
@@ -370,7 +370,7 @@ export function adminPageLabels(language) {
       invalidQr:'This QR does not belong to a member of this club.',scanAgain:'Scan again',save:'Save',empty:'No results.',loading:'Loading…',
       error:'Could not load. Please try again.',confirm:'Confirm action?',account:'Account',details:'Details',dashboard:'Dashboard',
       schedule:'Class schedule',cancel:'Cancel',close:'Close',refresh:'Refresh',back:'Back',
-      language:'Language',notifications:'Notifications',birthdays:'Birthdays',share:'Share signup',markRead:'Mark as read',markUnread:'Mark as unread',
+      language:'Language',notifications:'Notifications',viewAllNotifications:'View all notifications',birthdays:'Birthdays',share:'Share signup',markRead:'Mark as read',markUnread:'Mark as unread',
       emptyNotifications:'No notifications.',emptyBirthdays:'No birthdays.',company:'Company',copy:'Copy company code',copied:'Copied',retry:'Try again',
       adminLabel:'Administration',overview:'Your club today',records:'records',loadingApp:'Preparing administration…',setupError:'Could not open this area.',
       happyBirthday:'Happy birthday!',happyBirthdayBody:'Wishing you a wonderful birthday!',signIn:'Sign in',logout:'Log out',openEditor:'Open editor',editorInfo:'This form has additional tools. Open the editor to continue.',shareShort:'Share',reference:'Reference'};

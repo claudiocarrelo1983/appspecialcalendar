@@ -8,14 +8,19 @@ export default function useClientBookings(ref,base,accountKey,showing,language){
   const source=useRef(base),query=useRef({}),pending=useRef(new Map()),sequence=useRef(0),revision=useRef(0),active=useRef(true),pageRef=useRef(null),mutating=useRef(false),identity=useRef(accountKey);
   identity.current=accountKey;
   const visible=useRef(showing),previousIdentity=useRef(null),owner=useRef(null);visible.current=showing;
+  const scheduleLoad=useRef(null),currentLanguage=useRef(language);currentLanguage.current=language;
   const request=useCallback((action,params={})=>new Promise((resolve,reject)=>{
     if(!identity.current||!sameGymOrigin(source.current,base)||!ref.current){reject(Error('offline'));return;}
     const id=String(++sequence.current),timer=setTimeout(()=>{pending.current.delete(id);reject(Error('connection'));},15000);
     pending.current.set(id,{resolve,reject,timer});
     try{ref.current.injectJavaScript(clientBookingsScript(base,id,action,params));}catch(failure){clearTimeout(timer);pending.current.delete(id);reject(failure);}
   }),[base,ref]);
-  const load=useCallback(async params=>{
-    query.current={...query.current,...params};const current=++revision.current,requestIdentity=identity.current;setBusy(true);setError('');setReference('');
+  const load=useCallback(async (params,reusePending=false)=>{
+    query.current={...query.current,...params};
+    const requestIdentity=identity.current,key=JSON.stringify([requestIdentity,currentLanguage.current,Object.entries(query.current).sort(([a],[b])=>a.localeCompare(b))]);
+    if(reusePending&&scheduleLoad.current?.key===key)return scheduleLoad.current.promise;
+    const current=++revision.current;setBusy(true);setError('');setReference('');
+    const operation=(async()=>{
     try{
       const result=await request('schedule',query.current);
       if(!active.current||current!==revision.current||requestIdentity!==identity.current)return;
@@ -26,10 +31,12 @@ export default function useClientBookings(ref,base,accountKey,showing,language){
       if(query.current.schedule_id)setFocused(String(query.current.schedule_id));
       query.current={date:result.data.date,client_guid:result.data.clientGuid,company_code:result.data.companyCode};
     }catch(failure){if(active.current&&current===revision.current){setError(failure.message);setReference(failure.reference||failure.message);}}
-    finally{if(active.current&&current===revision.current)setBusy(false);}
+    finally{if(active.current&&current===revision.current)setBusy(false);if(scheduleLoad.current?.revision===current)scheduleLoad.current=null;}
+    })();
+    scheduleLoad.current={key,promise:operation,revision:current};return operation;
   },[request]);
   const reset=useCallback(()=>{
-    revision.current++;pending.current.forEach(item=>{clearTimeout(item.timer);item.reject(Error('navigating'));});pending.current.clear();query.current={};pageRef.current=null;setPage(null);setFocused(null);setError('');setNotice('');setBusy(false);mutating.current=false;
+    revision.current++;scheduleLoad.current=null;pending.current.forEach(item=>{clearTimeout(item.timer);item.reject(Error('navigating'));});pending.current.clear();query.current={};pageRef.current=null;setPage(null);setFocused(null);setError('');setNotice('');setBusy(false);mutating.current=false;
   },[]);
   useEffect(()=>{
     let params;
@@ -37,14 +44,14 @@ export default function useClientBookings(ref,base,accountKey,showing,language){
       previousIdentity.current=accountKey;reset();owner.current=null;
       if(isClientDashboard(source.current,base)){const target=new URL(source.current);params={};for(const key of ['date','company_code','client_guid','schedule_id'])if(target.searchParams.has(key))params[key]=target.searchParams.get(key);}
     }
-    if(accountKey&&showing)load(params);
+    if(accountKey&&showing)load(params,true);
   },[accountKey,showing,language,base,load,reset]);
-  useEffect(()=>{active.current=true;const listener=AppState.addEventListener('change',state=>{if(state==='active'&&identity.current&&visible.current)load();});return()=>{active.current=false;revision.current++;listener.remove();pending.current.forEach(item=>{clearTimeout(item.timer);item.reject(Error('navigating'));});pending.current.clear();};},[base,load]);
-  const onNavigation=useCallback(url=>{source.current=url||base;revision.current++;pending.current.forEach(item=>{clearTimeout(item.timer);item.reject(Error('navigating'));});pending.current.clear();setBusy(false);if(!sameGymOrigin(url,base)||/\/(?:site\/)?(?:login|logout)(?:\/|$)/.test(new URL(url||base,base).pathname))reset();},[base,reset]);
+  useEffect(()=>{active.current=true;const listener=AppState.addEventListener('change',state=>{if(state==='active'&&identity.current&&visible.current)load(undefined,true);});return()=>{active.current=false;revision.current++;scheduleLoad.current=null;listener.remove();pending.current.forEach(item=>{clearTimeout(item.timer);item.reject(Error('navigating'));});pending.current.clear();};},[base,load]);
+  const onNavigation=useCallback(url=>{source.current=url||base;revision.current++;scheduleLoad.current=null;pending.current.forEach(item=>{clearTimeout(item.timer);item.reject(Error('navigating'));});pending.current.clear();setBusy(false);if(!sameGymOrigin(url,base)||/\/(?:site\/)?(?:login|logout)(?:\/|$)/.test(new URL(url||base,base).pathname))reset();},[base,reset]);
   const onLoadEnd=useCallback(url=>{
     source.current=url||source.current;if(!isClientDashboard(source.current,base))return;
     const target=new URL(source.current),params={};for(const key of ['date','company_code','client_guid','schedule_id'])if(target.searchParams.has(key))params[key]=target.searchParams.get(key);
-    if(identity.current)load(params);else query.current=params;
+    if(identity.current)load(params,true);else query.current=params;
   },[base,load]);
   const onMessage=useCallback(event=>{
     if(typeof event.data!=='string'||event.data.length>2000000)return false;let message;try{message=JSON.parse(event.data);}catch{return false;}

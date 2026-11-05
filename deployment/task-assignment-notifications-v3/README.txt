@@ -1,0 +1,3 @@
+Upload common and frontend into hosting httpdocs, preserving paths. Includes timestamps for future tasks, assignment/reassignment events, and the read-only dropdown refresh endpoint.
+For task 32 (already assigned to Mafalda with a blank creation date), open Edit and Save once without changing the assignee. This writes the missing assignment event once, preserves the unknown original creation date, and does not notify a different user. Repeated saves do not duplicate the event.
+No migration or automatic production data backfill is performed. Publish the app OTA refresh changes, or reload the app document once after saving the task.

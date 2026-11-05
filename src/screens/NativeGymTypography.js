@@ -1,7 +1,11 @@
 import React,{createContext,useContext} from 'react';
-import {Text as SystemText,StyleSheet} from 'react-native';
+import {Text as SystemText,StyleSheet,ActivityIndicator} from 'react-native';
 import theme from '../utils/gymUiTheme';
 export const NativeFontContext=createContext(false);
+// Settings is the reference spinner for all native pages and loading actions.
+export function LoadingIndicator({color,...props}){
+  return <ActivityIndicator {...props} color={color} size="small"/>;
+}
 export function Text({style,heading,...props}){
   const loaded=useContext(NativeFontContext);
   const flat=StyleSheet.flatten(style)||{};

@@ -25,7 +25,7 @@ const snapshot = () => ({ enabled: true, accountKey: 'a'.repeat(64), language: '
   features: { pass: false, sessions: false, week: false, timer: false }, bookings: [] });
 
 function hook() {
-  const slots = [], scripts = [], urls=[], timers = new Map(); let cursor = 0, timer = 0;
+  const slots = [], scripts = [], urls=[], navigations=[], timers = new Map(); let cursor = 0, timer = 0;
   const react = { useRef(value) { const i = cursor++; if (!(i in slots)) slots[i] = { current: value }; return slots[i]; },
     useState(value) { const i = cursor++; if (!(i in slots)) slots[i] = value;
       return [slots[i], next => { slots[i] = typeof next === 'function' ? next(slots[i]) : next; }]; },
@@ -37,9 +37,9 @@ function hook() {
     './nativeAuthCore': load('utils/nativeAuthCore.js'),
   }, { setTimeout: fn => { timers.set(++timer, fn); return timer; }, clearTimeout: id => timers.delete(id) });
   const ref = { current: { injectJavaScript: script => scripts.push(script) } };
-  const render = () => { cursor = 0; return useNativeGym(ref, start, url => urls.push(url)); };
+  const render = () => { cursor = 0; return useNativeGym(ref, start, (url,options) => {urls.push(url);navigations.push({url,options});}); };
   let gym = render(); gym.onNavigation(start + 'dashboard-gym-client');
-  return { render, scripts, urls, timers,
+  return { render, scripts, urls, navigations, timers,
     request() { const promise = render().refresh(); return { promise, script: scripts.at(-1) }; },
     reply(request, status, data) {
       const config = JSON.parse(request.script.match(/\}\)\((\{.*\})\);true;$/s)[1]);
@@ -49,6 +49,41 @@ function hook() {
     },
   };
 }
+
+test('View all notifications forces the inbox source and repeated opens cannot retain the old class document',async()=>{
+ const p=hook(),initial=p.request();p.reply(initial,200,snapshot());await initial.promise;
+ p.render().openWeb('notifications');
+ assert.equal(p.navigations.at(-1).url,start+'group-notifications');
+ assert.equal(p.navigations.at(-1).options.reload,true);
+ assert.equal(p.render().webSection,'notifications');
+ assert.equal(p.render().webTarget,start+'group-notifications');
+ p.render().onLoadEnd({nativeEvent:{url:start+'dashboard-gym-client'}});
+ assert.ok(p.render().webTarget,'Old document completion must not reveal the old page');
+ p.render().onNavigation(start+'group-notifications');
+ p.render().onLoadEnd({nativeEvent:{url:start+'group-notifications'}});
+ assert.equal(p.render().webTarget,null,'Inbox must be visible after loading');
+ p.render().onNavigation(start+'dashboard-gym-client?date=2026-11-06&schedule_id=7');
+ p.render().openWeb('notifications');
+ assert.equal(p.navigations.length,2);assert.equal(p.navigations.at(-1).options.reload,true);
+ p.render().openWeb('notifications',{id:12});
+ assert.equal(p.navigations.at(-1).url,start+'group-notifications/view?id=12');
+ assert.equal(p.navigations.at(-1).options.reload,true);
+});
+
+test('client WebView composition disables both nested staff shells',()=>{
+ const source=fs.readFileSync(path.join(root,'src/screens/WebViewScreen.js'),'utf8');
+ const ast=babel.parseSync(source,{babelrc:false,configFile:false,parserOpts:{plugins:['jsx']}}),found=[];
+ function walk(node){if(!node||typeof node!=='object')return;
+  if(node.type==='JSXOpeningElement'&&['NativeAdminFrame','NativeAdminShell'].includes(node.name?.name)){
+   const expression=node.attributes.find(attr=>attr.name?.name==='enabled')?.value?.expression;
+   assert(expression,'Staff shell ownership guard missing');
+   const code=babel.transformFromAstSync({type:'File',program:{type:'Program',sourceType:'script',body:[{type:'ExpressionStatement',expression}]}},null,{babelrc:false,configFile:false}).code;
+   assert.equal(vm.runInNewContext(code,{nativeGym:{data:snapshot()}}),false);
+   assert.equal(vm.runInNewContext(code,{nativeGym:{data:null}}),true);found.push(node.name.name);
+  }
+  for(const value of Object.values(node)){if(Array.isArray(value))value.forEach(walk);else if(value&&typeof value==='object')walk(value);}
+ }walk(ast);assert.equal(found.length,2);
+});
 
 test('FTX HTTP 403 clears native access without signing out the valid website session', async () => {
   const p = hook(), first = p.request(); p.reply(first, 200, snapshot()); await first.promise;
@@ -245,7 +280,7 @@ function shell(gym, child, extra = {}) {
     './NativeClientBookings':'ClientBookings',
     './NativeClientTabIcon':'ClientTabIcon',
     './NativeCompanyLogo':'CompanyLogo','./NativeFitnessCalendar':'FitnessCalendar',
-    './NativeGymTypography': { Text: 'Text', Icon: 'Icon', NativeFontContext: { Provider: 'Provider' } },
+    './NativeGymTypography': {LoadingIndicator:'ActivityIndicator', Text: 'Text', Icon: 'Icon', NativeFontContext: { Provider: 'Provider' } },
     '../utils/gymUiTheme': { __esModule: true, default: {}, brandSoft: () => '' },
     '../utils/summaryCardLayout': load('utils/summaryCardLayout.js', {}),
     '../utils/companyAppConfig': () => ({ color: '#198754' }),

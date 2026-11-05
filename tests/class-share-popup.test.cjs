@@ -1,13 +1,14 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),{test}=require('node:test'),babel=require('@babel/core');
 function nodes(tree){return !tree||typeof tree!=='object'?[]:[tree,...(tree.props?.children||[]).flat(Infinity).flatMap(nodes)];}
 function harness(){
- const slots=[],effects=[],timers=new Map();let cursor=0,seq=0;
+ const slots=[],effects=[],timers=new Map(),alerts=[];let cursor=0,seq=0;
  const react={createElement:(type,props,...children)=>({type,props:{...props,children}}),useState(value){const i=cursor++;if(!(i in slots))slots[i]=value;return [slots[i],value=>slots[i]=value];},useRef(value){const i=cursor++;return slots[i]||(slots[i]={current:value});},useEffect(fn,deps){const i=cursor++,old=slots[i];if(!old||deps.some((v,n)=>v!==old.deps[n]))effects.push(()=>{old?.cleanup?.();slots[i]={deps,cleanup:fn()};});}};
  const native=Object.fromEntries(['ActivityIndicator','Modal','Pressable','ScrollView','TextInput','View'].map(name=>[name,name]));
- const mocks={react,'react-native':{...native,StyleSheet:{create:v=>v}},'expo-crypto':{randomUUID:()=> '11111111-1111-4111-8111-111111111111'},'./NativeGymTypography':{Text:'Text',Icon:'Icon'},'../utils/gymUiTheme':{__esModule:true,default:{},brandSoft:()=>''}};
+ const mocks={react,'react-native':{...native,StyleSheet:{create:v=>v}},'expo-crypto':{randomUUID:()=> '11111111-1111-4111-8111-111111111111'},'./NativeGymTypography':{LoadingIndicator:'ActivityIndicator',Text:'Text',Icon:'Icon'},'../utils/gymUiTheme':{__esModule:true,default:{},brandSoft:()=>''}};
  const exports={},code=babel.transformSync(fs.readFileSync(require.resolve('../src/screens/NativeClassShare.js'),'utf8'),{babelrc:false,configFile:false,plugins:['@babel/plugin-transform-react-jsx','@babel/plugin-transform-modules-commonjs']}).code;
  vm.runInNewContext(code,{exports,require:key=>{assert.ok(key in mocks,key);return mocks[key];},setTimeout:fn=>{timers.set(++seq,fn);return seq;},clearTimeout:id=>timers.delete(id)});
- return {render(props){cursor=0;const tree=exports.default(props);while(effects.length)effects.shift()();return nodes(tree);},async flush(){const pending=[...timers.values()];timers.clear();for(const fn of pending)await fn();}};
+ mocks['react-native'].Alert={alert:(...args)=>alerts.push(args)};
+ return {alerts,render(props){cursor=0;const tree=exports.default(props);while(effects.length)effects.shift()();return nodes(tree);},async flush(){const pending=[...timers.values()];timers.clear();for(const fn of pending)await fn();}};
 }
 test('share popup searches after two letters, selects a client, and retries with the same idempotency token',async()=>{
  const h=harness(),queries=[],sent=[];let attempts=0;
@@ -41,5 +42,24 @@ test('started-class rejection has one specific message in English and Portuguese
   tree.find(node=>node.type==='Pressable'&&nodes(node).some(child=>child.type==='Text'&&child.props.children.includes('Alice'))).props.onPress();
   tree=h.render(props);await tree.find(node=>node.props.accessibilityLabel===label).props.onPress();tree=h.render(props);
   const errors=tree.filter(node=>node.props.accessibilityRole==='alert');assert.equal(errors.length,1);assert.ok(errors[0].props.children.includes(expected));
+ }
+});
+
+test('already-booked recipient shows a localized popup without reporting an invitation sent',async()=>{
+ for(const [language,title,button] of [['en','Already booked','Send invitation'],['pt','Já tem reserva','Enviar convite']]){
+  const h=harness();let calls=0;
+  const props={item:{schedule_id:7,date:'2026-11-06',class_name:'Muay Thai'},language,color:'#198754',onClose(){},
+   search:async q=>[{id:q==='Al'?2:3,name:q==='Al'?'Alice':'Bob'}],send:async(item,id)=>{calls++;if(id===2){const error=Error('Booked');error.reason='already_booked';throw error;}}};
+  let tree=h.render(props);tree.find(node=>node.type==='TextInput').props.onChangeText('Al');h.render(props);await h.flush();tree=h.render(props);
+  tree.find(node=>node.type==='Pressable'&&nodes(node).some(child=>child.type==='Text'&&child.props.children.includes('Alice'))).props.onPress();
+  tree=h.render(props);await tree.find(node=>node.props.accessibilityLabel===button).props.onPress();tree=h.render(props);
+  assert.equal(h.alerts.length,1);assert.equal(h.alerts[0][0],title);assert(h.alerts[0][1].includes('Alice'));
+  assert.equal(tree.find(node=>node.props.accessibilityLabel===button).props.disabled,true);
+  assert(!tree.some(node=>node.type==='Text'&&node.props.children.includes(language==='pt'?'Convite enviado para':'Invitation sent to')));
+  await tree.find(node=>node.props.accessibilityLabel===button).props.onPress();assert.equal(calls,1,'Already-booked recipient was submitted again');
+  tree.find(node=>node.type==='TextInput').props.onChangeText('Bo');h.render(props);await h.flush();tree=h.render(props);
+  tree.find(node=>node.type==='Pressable'&&nodes(node).some(child=>child.type==='Text'&&child.props.children.includes('Bob'))).props.onPress();
+  tree=h.render(props);assert.equal(tree.find(node=>node.props.accessibilityLabel===button).props.disabled,false);
+  await tree.find(node=>node.props.accessibilityLabel===button).props.onPress();assert.equal(calls,2);
  }
 });

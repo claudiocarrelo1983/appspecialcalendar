@@ -1,5 +1,6 @@
+import {LoadingIndicator as ActivityIndicator} from './NativeGymTypography';
 import React,{useEffect,useRef,useState} from 'react';
-import {ActivityIndicator,Alert,Modal,Pressable,ScrollView,StyleSheet,View} from 'react-native';
+import {Alert,Modal,Pressable,ScrollView,StyleSheet,View} from 'react-native';
 import {Icon,Text} from './NativeGymTypography';
 import theme,{brandSoft} from '../utils/gymUiTheme';
 import {NotificationIcon} from './NativeAdminHeader';
@@ -49,8 +50,13 @@ export default function NativeNotifications({gym,bookings,base,t,color,visible,o
   };
   const toggle=notice=>{
     if(!notice.bookingUrl){mark(notice);return;}
-    const action=notificationBookingAction(invitations[notice.id]?.row);
-    if(busy||changing!==null||action?.enabled!==true)return;
+    const state=invitations[notice.id]?.row,action=notificationBookingAction(state);
+    if(busy||changing!==null)return;
+    if(action?.enabled!==true){
+      Alert.alert(state?.booked?(pt?'Cancelamento indisponível':'Cancellation unavailable'):(pt?'Reserva indisponível':'Booking unavailable'),
+        state?.reason||(pt?'Não é possível alterar a reserva desta aula neste momento.':'This class booking cannot be changed right now.'));
+      return;
+    }
     Alert.alert(action.label,pt?'Confirmar a alteração desta reserva?':'Confirm this booking change?',[
       {text:pt?'Voltar':'Back',style:'cancel'}, {text:pt?'Confirmar':'Confirm',onPress:()=>changeBooking(notice,action)}]);
   };
@@ -66,7 +72,7 @@ export default function NativeNotifications({gym,bookings,base,t,color,visible,o
           <Pressable accessibilityRole="button" onPress={load} style={s.action}><Text style={{color}}>{t.retry}</Text></Pressable></View>}
         {!busy&&!error&&rows.length===0&&<View style={s.message}><Icon name="bell" color={color} size={32}/><Text style={s.company}>{t.noNotifications}</Text></View>}
         {rows.map(row=>{const invitation=!!row.bookingUrl,task=row.type==='task',accent=invitation?'#7c3aed':task?'#b45309':color,state=invitations[row.id]?.row,checked=invitation?state?.booked===true:row.read;
-          const action=invitation?notificationBookingAction(state):null,disabled=changing!==null||(invitation&&(busy||action?.enabled!==true));
+          const action=invitation?notificationBookingAction(state):null,unavailable=invitation&&action?.enabled!==true,disabled=changing!==null||busy;
           const label=invitation?(checked?(pt?'Cancelar reserva':'Cancel booking'):(pt?'Reservar aula':'Book class')):(row.read?t.markUnread:t.markRead);
           return <View key={row.id} style={[s.row,(!row.read||invitation)&&{backgroundColor:brandSoft(accent,.05)}]}>
           <View style={[s.icon,{backgroundColor:brandSoft(accent)}]}><NotificationIcon invitation={invitation} task={task} color={accent}/></View>
@@ -80,7 +86,7 @@ export default function NativeNotifications({gym,bookings,base,t,color,visible,o
             <Text style={s.date}>{new Date(row.createdAt).toLocaleString(gym.data.language==='pt'?'pt-PT':'en-GB',{timeZone:gym.data.timezone,dateStyle:'short',timeStyle:'short'})}</Text>
           </Pressable>
           <Pressable accessibilityRole="checkbox" accessibilityLabel={label} accessibilityState={{checked,disabled}} aria-checked={checked} disabled={disabled}
-            onPress={()=>toggle(row)} style={[s.checkTouch,disabled&&invitation&&{opacity:.55}]}>
+            onPress={()=>toggle(row)} style={[s.checkTouch,unavailable&&{opacity:.55}]}>
             <View style={[s.check,{borderColor:checked?accent:theme.border,backgroundColor:checked?accent:theme.surface}]}>
               {changing===row.id?<ActivityIndicator color={checked?'#fff':accent}/>:checked&&<Icon name="check" color="#fff" size={17}/>}
             </View>

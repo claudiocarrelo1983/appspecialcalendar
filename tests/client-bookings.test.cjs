@@ -27,6 +27,21 @@ function hook(){
  const reply=(id,result,status=200,url=base)=>render().onMessage({url,data:JSON.stringify({type:core.CLIENT_BOOKINGS_MESSAGE,id,result,status})});
  render();return {render,scripts,links,config,reply,setAccount:value=>{account=value;return render();},setLanguage:value=>{language=value;return render();},async ready(){reply(config().id,{success:true,data:snapshot()});await new Promise(setImmediate);return render();}};
 }
+
+test('automatic post-login and load-end triggers share one in-flight schedule request',async()=>{
+ const h=hook(),before=h.scripts.length;
+ h.render().onLoadEnd(base+'/dashboard-gym-client');
+ h.render().onLoadEnd(base+'/dashboard-gym-client');
+ assert.equal(h.scripts.length,before,'Duplicate load-end events restarted the same schedule');
+ await h.ready();assert.ok(h.render().page);assert.equal(h.render().busy,false);
+ const different=h.render().load({date:'2027-01-02'},true),first=h.config().id;
+ const duplicate=h.render().load({date:'2027-01-02'},true);
+ assert.equal(h.config().id,first);
+ h.reply(first,{success:true,data:snapshot('2027-01-02')});await Promise.all([different,duplicate]);
+ assert.equal(h.render().page.date,'2027-01-02');
+ const explicit=h.render().load(),fresh=h.config().id;assert.notEqual(fresh,first,'Explicit refresh must fetch fresh server policy');
+ h.reply(fresh,{success:true,data:snapshot('2027-01-02')});await explicit;
+});
 test('a resume refresh retains the class occurrence requested by a push until its data arrives',async()=>{
  const h=hook();await h.ready();
  h.render().onLoadEnd(base+'/dashboard-gym-client/index?date=2027-01-02&schedule_id=7&client_guid=self&_push_class=1');
@@ -80,7 +95,7 @@ function nodes(tree){return !tree||typeof tree!=='object'?[]:[tree,...(tree.prop
 test('client schedule renders native filter, class actions, family controls and matching share component',()=>{
  const slots=[];let cursor=0;const react={useState:v=>{const i=cursor++;if(!(i in slots))slots[i]=v;return [slots[i],value=>slots[i]=typeof value==='function'?value(slots[i]):value];},useEffect(){},useMemo:fn=>fn(),useRef:v=>({current:v}),createElement:(type,props,...children)=>({type,props:{...props,children}})};
  const native=Object.fromEntries(['ActivityIndicator','Modal','Pressable','RefreshControl','ScrollView','Switch','View'].map(name=>[name,name]));let confirmation;
- const component=load('screens/NativeClientBookings.js',{react,'react-native':{...native,Alert:{alert:(...args)=>confirmation=args},StyleSheet:{create:v=>v}},'./NativeGymTypography':{Text:'Text',Icon:'Icon'},'./NativeScheduleFilter':'ScheduleFilter','./NativeClassShare':'ClassShare','./NativeBookingCheckbox':'BookingCheckbox','./NativeAdminHeader':{ShareIcon:'ShareIcon'},'../utils/calendarAlerts':{showCalendarFailure(){}},'../utils/nativeCalendar':{createClassCalendarHandler:()=>async()=>{}},'../utils/gymUiTheme':{__esModule:true,default:{},brandSoft:()=>''}}).default;
+ const component=load('screens/NativeClientBookings.js',{react,'react-native':{...native,Alert:{alert:(...args)=>confirmation=args},StyleSheet:{create:v=>v}},'./NativeGymTypography':{LoadingIndicator:'ActivityIndicator',Text:'Text',Icon:'Icon'},'./NativeScheduleFilter':'ScheduleFilter','./NativeClassShare':'ClassShare','./NativeBookingCheckbox':'BookingCheckbox','./NativeAdminHeader':{ShareIcon:'ShareIcon'},'../utils/calendarAlerts':{showCalendarFailure(){}},'../utils/nativeCalendar':{createClassCalendarHandler:()=>async()=>{}},'../utils/gymUiTheme':{__esModule:true,default:{},brandSoft:()=>''}}).default;
  const page={...snapshot(),member:{name:'Selected child',number:1619,companyName:'FTX',status:'active'},upcomingBookings:[{id:2,title:'Future class',date:'2027-01-01',status:'booked'}],bookingHistory:[{id:1,title:'Past class',date:'2026-01-01',status:'attended'}]};
  const props={base,color:'#198754',language:'en',sharing:{searchShareClients:async()=>[],sendClassInvitation:async()=>{}},bookings:{page,load(){},perform(){},closeFocused(){}}};
  const render=()=>{cursor=0;return nodes(component(props));};let tree=render();assert.ok(tree.some(node=>node.type==='ScheduleFilter'));
@@ -107,4 +122,17 @@ test('client schedule renders native filter, class actions, family controls and 
  assert.ok(!tree.some(node=>node.props.label==='Cancel booking'),'Server cancellation policy controls the available action');
  assert.ok(tree.some(node=>node.type==='Text'&&node.props.children.includes('Cancellation window closed')));
  assert.ok(!tree.some(node=>node.props.testID==='native-member-summary'),'Member identity and booking shortcuts are now in the shared client header');
+ props.bookings.page={...page,rows:page.rows.map(row=>({...row,status:'finished',actions:[],reason:'Bookings closed'}))};tree=render();
+ let status=tree.find(node=>node.props.label==='Finished');assert.ok(status);assert.equal(status.props.disabled,true);assert.equal(status.props.color,'#dc2626');assert.equal(status.props.style.minWidth,112);assert.equal(status.props.style.marginLeft,'auto');assert.equal(status.props.onPress,undefined);
+ assert.ok(tree.some(node=>node.props.accessibilityLabel==='Add to calendar'));assert.ok(tree.some(node=>node.props.accessibilityLabel==='Share class'));
+ props.language='pt';tree=render();assert.ok(tree.some(node=>node.props.label==='Terminada'&&node.props.disabled));
+ props.bookings.page={...page,rows:page.rows.map(row=>({...row,actions:[],reason:'Reservas encerradas'}))};tree=render();
+ status=tree.find(node=>node.props.label==='Reservas encerradas');assert.ok(status);assert.equal(status.props.disabled,true);assert.equal(status.props.style.flex,1);
+ props.language='en';
+ props.bookings={...props.bookings,page:null,busy:true,error:''};tree=render();
+ const spinner=tree.find(node=>node.type==='ActivityIndicator');assert.equal(spinner.props.size,undefined);assert.equal(spinner.props.style,undefined);
+ assert.ok(tree.some(node=>node.props.testID==='native-client-bookings-spinner'));
+ assert.ok(!tree.some(node=>node.props.label==='Try again'),'Loading should not show retry before a failure');
+ props.bookings={...props.bookings,busy:false,error:'offline'};tree=render();
+ assert.ok(tree.some(node=>node.props.label==='Try again'));assert.ok(!tree.some(node=>node.props.testID==='native-client-bookings-spinner'));
 });

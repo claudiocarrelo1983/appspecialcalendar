@@ -26,6 +26,11 @@ export async function notificationBookings(rows, base, request) {
           || (group.query.company_code && page.companyCode !== group.query.company_code)) throw Error('invalid_response');
         for (const { notice, schedule } of group.notices) {
           const row = page.rows.find(item => String(item.schedule_id) === schedule && item.date === group.query.date);
+          // Require evidence for this recipient/occurrence, never the notice's read state.
+          if (row?.booked === true && (!Number.isSafeInteger(row.booking_id) || row.booking_id < 1
+            || row.booking_client_guid !== page.clientGuid)) {
+            result[notice.id] = { row: null, error: 'invalid_response' }; continue;
+          }
           result[notice.id] = { row: row || null, error: row ? '' : 'unavailable' };
         }
       } catch { for (const { notice } of group.notices) result[notice.id] = { row: null, error: 'offline' }; }
