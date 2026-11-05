@@ -7,6 +7,7 @@ import NativeAdminShell from './NativeAdminShell';
 import useNativeAdmin from '../utils/useNativeAdmin';
 import NativeAdminFrame from './NativeAdminFrame';
 import useNativeAdminPages from '../utils/useNativeAdminPages';
+import useWebViewSource from '../utils/useWebViewSource';
 import useWebViewRecovery from '../utils/useWebViewRecovery';
 import { createAccountLoginWarningHandler } from '../utils/accountLoginWarnings';
 import nativeGymTranslations from '../utils/nativeGymTranslations';
@@ -66,7 +67,7 @@ const SITE_OVERLAY_HIDE_SCRIPT = `
           'body.loading-overlay-showing, html.loading-overlay-showing {',
           '  overflow: auto !important;',
           '}'
-        ].join('\\n')));
+        ].join('')));
         target.appendChild(style);
       } catch (err) {}
     }
@@ -211,7 +212,7 @@ const NATIVE_FEEL_SCRIPT = `
           '  min-height: 100dvh !important;',
           '  box-sizing: border-box !important;',
           '}'
-        ].join('\\n');
+        ].join('');
 
         target.appendChild(style);
       } catch (err) {}
@@ -335,7 +336,7 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
     show:(title,message,buttons)=>Alert.alert(title,message,buttons),inject:script=>webViewRef.current?.injectJavaScript(script)});
   const initialLoadFired = useRef(false);
   const [canGoBack, setCanGoBack] = useState(false);
-  const [webViewUrl, setWebViewUrl] = useState(START_URL);
+  const [webViewUrl, setWebViewUrl, sourceRevision] = useWebViewSource(START_URL);
   const [classLinkRevision, setClassLinkRevision] = useState(0);
   const recovery=useWebViewRecovery(webViewRef,START_URL,setWebViewUrl);
   const navigateAuth=useCallback(url=>recovery.replace(url),[recovery.replace]);
@@ -510,7 +511,7 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
     <NativeAdminShell admin={nativeAdmin} framed={!!adminPages.document} brandColor={companyColor} accountKey={fitnessAccountKey}>
     <WebView
       ref={webViewRef}
-      key={`${webViewUrl}:${classLinkRevision}:${recovery.revision}`}
+      key={`${webViewUrl}:${sourceRevision}:${classLinkRevision}:${recovery.revision}`}
       source={{ uri: webViewUrl }}
       style={styles.webView}
       containerStyle={styles.container}
@@ -529,6 +530,8 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       }}
       onContentProcessDidTerminate={()=>recovery.terminated(recovery.revision)}
       onRenderProcessGone={()=>recovery.terminated(recovery.revision)}
+      startInLoadingState={false}
+      renderLoading={()=>null}
       renderError={()=>null}
       onHttpError={(syntheticEvent) => {
         nativeAuth.fail(syntheticEvent?.nativeEvent);

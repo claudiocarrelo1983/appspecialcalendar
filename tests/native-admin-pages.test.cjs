@@ -63,6 +63,20 @@ test('real task notifications retain their type and existing completion control 
   b.run('change',{id:rows[0].control,value:true});
   assert.equal(b.w.document.querySelector('[data-task-id="7"]').checked,true);
 });
+test('class invitations retain a distinct notification type across the native header bridge',()=>{
+ const markup='<div class="company-notifications-menu"><div class="company-notification-row" data-notification-type="class-invitation"><div class="company-notification-icon is-invitation"></div><a href="/group-notifications/view?id=10"><span class="company-notification-title">Class invitation</span></a></div></div>';
+ const b=browser('',base+'dashboard-gym',chrome.replace('</header>',markup+'</header>'));
+ assert.equal(b.document().header.notifications.rows[0].type,'class-invitation');b.dom.window.close();
+});
+test('notification refresh updates assigned tasks without replacing the current page or running response scripts',async()=>{
+ const prefix=chrome.replace('</header>','<button id="page-header-notifications-dropdown"><span class="badge">0</span></button><div class="company-notifications-menu"><div class="company-notifications-list"></div></div></header>');
+ const b=browser('<form><input name="notes" value="Unsaved notes"></form>',base+'company',prefix);let options;
+ b.w.fetch=async(url,opts)=>{assert.equal(url,base+'group-notifications/dropdown');options=opts;return {ok:true,url,status:200,text:async()=>'<button id="page-header-notifications-dropdown"><span class="badge">1</span></button><div class="company-notifications-menu"><div class="company-notifications-list"><div class="company-notification-row"><div class="company-notification-icon is-task"></div><a href="/task-operations/view?id=44"><span class="company-notification-title">Assigned task</span></a><input type="checkbox" class="company-notification-check" data-task-id="44"></div></div><script>window.untrustedTaskScriptRan=true</script></div>'};};
+ b.run('notifications');await new Promise(setImmediate);await new Promise(setImmediate);
+ assert.equal(options.cache,'no-store');assert.equal(options.credentials,'same-origin');
+ assert.equal(b.document().header.notifications.rows[0].title,'Assigned task');assert.equal(b.document().header.notifications.rows[0].type,'task');
+ assert.equal(b.w.document.querySelector('input[name=notes]').value,'Unsaved notes');assert.equal(b.w.untrustedTaskScriptRan,undefined);b.dom.window.close();
+});
 test('native frame exports only permitted same-company navigation and keeps POST logout as an opaque action',()=>{
   const b=browser('<div class="clients-index"></div>');const doc=b.document();
   assert.equal(doc.active,true);assert.equal(doc.language,'pt');assert.equal(doc.footer.length,4);
@@ -262,9 +276,10 @@ function hook(){
     useCallback(fn,deps){const i=cursor++,old=slots[i];if(!old||deps.some((value,n)=>value!==old.deps[n]))slots[i]={fn,deps};return slots[i].fn;},
     useEffect(fn,deps){const i=cursor++,old=slots[i];if(!old||deps.some((value,n)=>value!==old.deps[n]))effects.push(()=>{old?.cleanup?.();slots[i]={deps,cleanup:fn()};});}};
   const ref={current:{injectJavaScript:value=>scripts.push(value),reload:()=>navigations.push('reload')}};
-  const {default:usePages}=load('useNativeAdminPages.js',{react,'./nativeGymCore':gym,'./nativeAdminPages':core,'./nativeAdminNavigation':navigation},
+  const {default:usePages}=load('useNativeAdminPages.js',{react,'react-native':{AppState:{addEventListener:()=>({remove(){}})}},'./nativeGymCore':gym,'./nativeAdminPages':core,'./nativeAdminNavigation':navigation},
     {setTimeout:fn=>{timers.set(++timer,fn);return timer;},clearTimeout:id=>timers.delete(id)});
-  const navigate=url=>navigations.push(url);
+  const forcedNavigations=[];
+  const navigate=(url,options)=>{navigations.push(url);if(options?.reload===true)forcedNavigations.push(url);};
   const render=()=>{cursor=0;const state=usePages(ref,base,navigate);while(effects.length)effects.shift()();return state;};
   const dashboard={url:base+'dashboard-gym',title:'Dashboard',kind:'dashboard',rows:[]};
   const send=(message,url=dashboard.url)=>{
@@ -274,8 +289,21 @@ function hook(){
   };
   render().onNavigation(dashboard.url);send({event:'document',active:true,page:dashboard,footer:[],menu:[]});
   const id=()=>JSON.parse(scripts.at(-1).match(/\}\)\((\{.*\})\);true;$/s)[1]).id;
-  return {render,send,id,scripts,timers,navigations,dashboard,ref,unmount:()=>slots.forEach(slot=>slot?.cleanup?.())};
+  return {render,send,id,scripts,timers,navigations,forcedNavigations,dashboard,ref,unmount:()=>slots.forEach(slot=>slot?.cleanup?.())};
 }
+
+test('scanning from a native tab always opens check-in and scanning the same member there reloads the confirmation',()=>{
+ const h=hook(),target=base+'gym-checkin/index?member_id=1619';
+ const clients={url:base+'clients-list',title:'Clients',kind:'clients',rows:[]};
+ h.render().navigate(clients.url);h.send({event:'response',id:h.id(),status:200,page:clients});
+ h.render().openWeb(target,{reload:true});assert.equal(h.navigations.at(-1),target);assert.equal(h.render().web,true);
+ h.render().onNavigation(target);h.send({event:'document',active:true,page:{url:target,title:'Check-in',kind:'web'},footer:[],menu:[]},target);
+ h.render().openWeb(target,{reload:true});assert.equal(h.navigations.at(-1),target);assert.equal(h.forcedNavigations.length,2);
+ // The WebView follows View client details without React changing its source URI.
+ const details=base+'clients-list/view?id=1619';h.render().onNavigation(details);
+ h.send({event:'document',active:true,page:{url:details,title:'Client',kind:'web'},footer:[],menu:[]},details);
+ h.render().openWeb(target,{reload:true});assert.equal(h.navigations.at(-1),target);assert.equal(h.forcedNavigations.length,3);
+});
 test('native tabs cache read-only list data and back restores the dashboard without reloading the web document',()=>{
   const h=hook(),clients={url:base+'clients-list',title:'Clients',kind:'clients',rows:[]};
   h.render().navigate(clients.url);assert.equal(h.render().busy,true);

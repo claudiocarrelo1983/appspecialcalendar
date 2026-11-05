@@ -274,7 +274,7 @@ export default function NativeGymShell({gym,bottomExtension=0,children,brandColo
     </Modal>
     {gym.authTransition&&<View testID="native-auth-transition" style={s.authTransition}>{gym.authTransitionError?<><Text style={s.muted}>{data?.language==='pt'?'Não foi possível abrir o início de sessão.':'Could not open sign-in.'}</Text><Text style={s.muted}>{gym.authTransitionError}</Text><Button secondary color={color} label={t.retry} onPress={gym.signIn}/></>:<><ActivityIndicator color={color}/><Text style={s.muted}>{t.loading}</Text></>}</View>}
     {!!data&&<NativeFitnessCalendar key={data.accountKey} accountKey={data.accountKey} language={data.language} color={color} visible={calendarOpen} onClose={()=>setCalendarOpen(false)}/>}
-    {!!data&&<NativeNotifications gym={gym} t={t} color={color} visible={notificationsOpen} onClose={()=>setNotificationsOpen(false)} onUnread={setUnread}/>}
+    {!!data&&<NativeNotifications gym={gym} bookings={bookings} base={companyAppConfig().siteUrl} t={t} color={color} visible={notificationsOpen} onClose={()=>setNotificationsOpen(false)} onUnread={setUnread}/>}
     {!!data&&<NativeBirthdays gym={gym} t={t} color={color} visible={birthdaysOpen} onRows={onBirthdayRows} onClose={()=>setBirthdaysOpen(false)}/>}
   </View></NativeFontContext.Provider>;
 }

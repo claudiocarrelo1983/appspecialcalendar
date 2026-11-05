@@ -1,0 +1,1 @@
+Upload frontend into httpdocs, preserving paths. Contains the check-in layout, scoped brand-colour CSS, and English/Portuguese translations. Existing Team QR access helper is required. No database or app build changes. Keeps check-in validation, company scope, location scope, membership checks and POST/CSRF behaviour.

@@ -236,7 +236,7 @@ export default function NativeAdminFrame({pages,admin,children,onBack,brandColor
       </View></View>
     </Modal>
     {active&&timerAccountKey&&<NativeFitnessCalendar key={timerAccountKey} accountKey={timerAccountKey} language={pages.document.language} color={color} visible={calendarOpen} onClose={()=>setCalendarOpen(false)}/>}
-    {active&&<NativeAdminScanner visible={scan} config={pages.document.scanner} base={siteUrl} t={t} color={color} onClose={()=>setScan(false)} onOpen={url=>{admin.showDashboard();pages.openWeb(url);}}/>}
+    {active&&<NativeAdminScanner visible={scan} config={pages.document.scanner} base={siteUrl} t={t} color={color} onClose={()=>setScan(false)} onOpen={url=>{admin.showDashboard();pages.openWeb(url,{reload:true});}}/>}
     {active&&pages.busy&&<View testID="native-admin-loading" pointerEvents="none" style={s.progress}><ActivityIndicator size="large" color={color}/></View>}
   </View>;
 }
@@ -260,5 +260,5 @@ const s=StyleSheet.create({flex:{flex:1},hidden:{position:'absolute',left:-10000
   menuBranch:{},menuChild:{paddingLeft:40},menuChildren:{},menuSection:{fontSize:13,color:theme.muted,paddingTop:18,paddingBottom:8},
   menuRow:{minHeight:64,flexDirection:'row',alignItems:'center',gap:14,paddingVertical:14,borderBottomWidth:1,borderColor:theme.border},menuLabel:{fontSize:15,fontWeight:'600',color:theme.text},menuArrowBox:{width:24,height:24,alignItems:'center',justifyContent:'center'},menuArrow:{width:8,height:8,borderRightWidth:2,borderBottomWidth:2},
   sheetHeader:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',padding:20,borderBottomWidth:1,borderColor:theme.border,minHeight:60},menuItem:{padding:18,minHeight:48,borderBottomWidth:1,borderColor:theme.border},
-  error:{color:theme.warning,padding:8},empty:{padding:24,textAlign:'center',color:theme.muted},pagination:{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:12},progress:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,.35)'},
+  error:{color:theme.warning,padding:8},empty:{padding:24,textAlign:'center',color:theme.muted},pagination:{flexDirection:'row',flexWrap:'wrap',gap:8,marginBottom:12},progress:{position:'absolute',top:0,right:0,bottom:0,left:0,zIndex:30,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(255,255,255,.35)'},
 });

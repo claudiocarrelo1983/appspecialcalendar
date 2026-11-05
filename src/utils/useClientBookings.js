@@ -65,5 +65,5 @@ export default function useClientBookings(ref,base,accountKey,showing,language){
     }catch(failure){if(active.current&&identity.current===currentIdentity){setError(failure.message);setReference(failure.reference||failure.message);}return false;}
     finally{mutating.current=false;if(active.current&&identity.current===currentIdentity)setBusy(false);}
   },[request,load]);
-  return {page:owner.current===accountKey?page:null,busy,error,reference,notice,focused,closeFocused:()=>setFocused(null),load,perform,onNavigation,onLoadEnd,onMessage};
+  return {page:owner.current===accountKey?page:null,busy,error,reference,notice,focused,closeFocused:()=>setFocused(null),load,perform,request,onNavigation,onLoadEnd,onMessage};
 }

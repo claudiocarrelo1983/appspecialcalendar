@@ -27,7 +27,6 @@ export function adminMemberTarget(value, config, base) {
 export function adminMemberCheckinTarget(value,config,base){
   const member=adminMemberTarget(value,config,base);
   if(!member)return null;
-  if(config.checkinAllowed===false)return member;
   const target=new URL('/gym-checkin/index',base);
   target.searchParams.set('member_id',new URL(member).searchParams.get('id'));
   target.searchParams.set('company_code',config.companyCode);
@@ -235,7 +234,8 @@ const SOURCE = String.raw`function(c) {
         const toggle=el.querySelector('.company-notification-check');
         const task=!!el.querySelector('.company-notification-icon.is-task,.bx-task,[data-task-id]')
           ||all(el,'a[href]').some(link=>{try{return /^\/task-operations\/(?:view|update)\/?$/.test(new URL(link.getAttribute('href'),location.href).pathname);}catch{return false;}});
-        return {id:String(i),type:task?'task':'notification',title:text(el.querySelector('.company-notification-title')),body:text(el.querySelector('.company-notification-body')),
+        const invitation=el.dataset.notificationType==='class-invitation'||!!el.querySelector('.company-notification-icon.is-invitation');
+        return {id:String(i),type:task?'task':invitation?'class-invitation':'notification',title:text(el.querySelector('.company-notification-title')),body:text(el.querySelector('.company-notification-body')),
           meta:text(el.querySelector('.company-notification-meta')),url:links(el,'a[href]',location.href)[0]?.url||null,
           read:toggle?toggle.checked:!el.classList.contains('is-unread'),control:toggle?register(toggle):null,disabled:!!toggle?.disabled};
       })}:null,
@@ -282,6 +282,21 @@ const SOURCE = String.raw`function(c) {
     if(c.enabled){try{${subcategoryTabsScript}}catch(error){send({event:'layout-error',code:'subcategory_layout'});}}
     return;
   }
+  if(c.action==='notifications') {
+    if(!gymAdminDocument()||window.__scAdminNotificationsRefreshing)return;
+    window.__scAdminNotificationsRefreshing=true;
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+    fetch(c.origin+'/group-notifications/dropdown',{credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{Accept:'text/html','X-Requested-With':'XMLHttpRequest'}}).then(async response=>{
+      const final=new URL(response.url||'/group-notifications/dropdown',c.origin);
+      if(!response.ok||final.origin!==c.origin||!/^\/group-notifications\/dropdown\/?$/.test(final.pathname))return;
+      const root=new DOMParser().parseFromString(await response.text(),'text/html'),menu=root.querySelector('.company-notifications-menu'),current=document.querySelector('.company-notifications-menu');
+      if(!menu||!current)return;
+      current.replaceChildren(...Array.from(menu.childNodes).map(node=>document.importNode(node,true)));
+      const bell=document.querySelector('#page-header-notifications-dropdown'),badge=root.querySelector('#page-header-notifications-dropdown .badge');
+      bell?.querySelector('.badge')?.remove();if(bell&&badge)bell.appendChild(document.importNode(badge,true));
+      ready();
+    }).catch(()=>{}).finally(()=>{clearTimeout(timer);window.__scAdminNotificationsRefreshing=false;});return;
+  }
   if (c.action==='change') {
     const el=window.__scAdminPageControls?.get(c.id);
     if(!el||!document.contains(el)||el.disabled)return;
@@ -327,7 +342,7 @@ const SOURCE = String.raw`function(c) {
   }
 }`;
 export function adminPageScript(base, action = 'install', params = {}) {
-  if (!['install','frame','read','invoke','submit','change'].includes(action)) throw Error('Unsupported page action');
+  if (!['install','frame','read','invoke','submit','change','notifications'].includes(action)) throw Error('Unsupported page action');
   if (action === 'read' && !adminListUrl(params.url, base)) throw Error('Unsupported list');
   const clean = action === 'install' ? {documentId:Number.isSafeInteger(params.documentId)?params.documentId:0}
     : action === 'read' ? {url:adminListUrl(params.url,base),id:String(params.id)}

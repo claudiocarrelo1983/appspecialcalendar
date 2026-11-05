@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { sameGymOrigin } from './nativeGymCore';
 import { ADMIN_PAGES_MESSAGE, adminListUrl, adminPageScript, validAdminPage } from './nativeAdminPages';
 import { adminCandidateUrl, publicOrClientUrl, adminDocumentMessageMatches } from './nativeAdminNavigation';
@@ -28,12 +29,13 @@ export default function useNativeAdminPages(ref, base, navigateWeb) {
   const display = useCallback(value => {current.current=value;setPage(value);setWeb(value?.kind==='web');setLocalScreen(null);setError('');},[]);
   const cancel = useCallback(() => {stopWarm();sequence.current++;if(pending.current)clearTimeout(pending.current.timer);pending.current=null;setBusy(false);},[stopWarm]);
   const clear = useCallback(() => {cancel();stopBootstrap();confirmedAdmin.current=false;setSessionVersion(value=>value+1);setStartup('idle');setDiagnostic('');doc.current=null;setDocument(null);display(null);cache.current.clear();offsets.current.clear();history.current=[];},[cancel,display,stopBootstrap]);
-  const openWeb = useCallback(url => {
+  const openWeb = useCallback((url,options={}) => {
     if (!sameGymOrigin(url,base)) return;
     cancel();setWeb(true);setLocalScreen(null);cache.current.clear();history.current=[];
+    if(options.reload===true){navigateWeb(url,{reload:true});return;}
     if (url === source.current) return;
     navigateWeb(url);
-  },[base,cancel,navigateWeb]);
+  },[base,cancel,navigateWeb,ref]);
   const read = useCallback((url,remember=true,force=false) => {
     const target=adminListUrl(url,base);
     if(!target||!doc.current) {openWeb(url);return;}
@@ -185,12 +187,19 @@ export default function useNativeAdminPages(ref, base, navigateWeb) {
     offsets.current.set(url,Math.min(value,100000));if(offsets.current.size>12)offsets.current.delete(offsets.current.keys().next().value);
   },[base]);
   const scrollOffset=useCallback(url=>offsets.current.get(url)||0,[]);
+  const refreshNotifications=useCallback(()=>{
+    if(doc.current&&!pending.current&&sameGymOrigin(source.current,base))ref.current?.injectJavaScript(adminPageScript(base,'notifications'));
+  },[base,ref]);
+  useEffect(()=>{
+    const listener=AppState.addEventListener('change',state=>{if(state==='active')refreshNotifications();});
+    return()=>listener.remove();
+  },[refreshNotifications]);
   const retry=useCallback(()=>{
     setError('');setDiagnostic('');setStartup('loading');
     if(doc.current)onLoadEnd(source.current);else ref.current?.reload();
   },[onLoadEnd,ref]);
   return {document,page,busy,error,web,startup,diagnostic,localScreen,sessionVersion,navigate,back,invoke,refresh,openWeb,change,onLoadEnd,onLocation,isAdminRoute,
-    rememberScroll,scrollOffset,retry,
+    rememberScroll,scrollOffset,retry,refreshNotifications,
     showWeb:()=>setWeb(true),showNative:()=>setWeb(current.current?.kind==='web'),onNavigation,onMessage,
     injectedScript:adminPageScript(base,'install',{documentId:documentGeneration.current})};
 }

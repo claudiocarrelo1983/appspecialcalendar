@@ -26,6 +26,7 @@ import {SplashArtwork} from ${source('src/screens/AnimatedSplashScreen.js')};
 import NativeClassShare from ${source('src/screens/NativeClassShare.js')};
 import ClientShell from ${source('src/screens/NativeGymShell.js')};
 import NativeAuthScreen from ${source('src/screens/NativeAuthScreen.js')};
+import NativeNotifications from ${source('src/screens/NativeNotifications.js')};
 import {authPageKind} from ${source('src/utils/nativeAuthCore.js')};
 import useCompanyColor from ${source('src/utils/useCompanyColor.js')};
 import {NativeFontContext} from ${source('src/screens/NativeGymTypography.js')};
@@ -48,6 +49,19 @@ const pages={
    {id:'2',title:'Taylor Silva',description:'Member · 12 classes',badges:['Active'],links:[]}]},
  'gym-classes':{title:'Classes',kind:'catalog',filters:[],rows:[{id:'1',title:'Muay Thai',description:'Main studio · 90 minutes',badges:['Active','Capacity 24'],links:[]}]},
 };
+function InvitationPreview(){
+ const parameters=new URLSearchParams(location.search),pt=parameters.get('lang')==='pt',booked=React.useRef(false),read=React.useRef({}),[visible,setVisible]=useState(true);
+ const date='2026-11-05',company=${JSON.stringify(company.pagecode)};
+ const notices=()=>[{id:1,title:pt?'Convite para aula: Muay Thai':'Class invitation: Muay Thai',body:'Fabio Teixeira — Muay Thai · '+date+' · 18:00',createdAt:date+'T12:53:00Z',read:false,bookingUrl:'/dashboard-gym-client/index?company_code='+company+'&date='+date+'&schedule_id=7'},
+ {id:2,title:pt?'Convite para aula: HIIT':'Class invitation: HIIT',body:pt?'Prazo de cancelamento encerrado':'Cancellation window closed',createdAt:date+'T11:00:00Z',read:false,bookingUrl:'/dashboard-gym-client/index?company_code='+company+'&date='+date+'&schedule_id=8'},
+ {id:4,type:'task',title:pt?'Lembrete de tarefa':'Task reminder',body:pt?'Rever as presenças das aulas de hoje.':'Review attendance for today’s classes.',createdAt:date+'T10:30:00Z',read:!!read.current[4]},
+ {id:3,title:pt?'Novidades do clube':'Club update',body:pt?'Uma notificação normal.':'An ordinary notification.',createdAt:date+'T10:00:00Z',read:!!read.current[3]}];
+ const params={company_code:company,client_guid:'self',date,schedule_id:7};
+ const bookings={load(){},request:async(action)=>{if(action==='book')booked.current=true;if(action==='cancel-booking')booked.current=false;return action==='schedule'?{success:true,data:{revision:'native-client-bookings-v1',date,serverTime:date+'T12:00:00Z',companyCode:company,clientGuid:'self',rows:[{key:'7:'+date,schedule_id:7,date,booked:booked.current,actions:[{kind:booked.current?'cancel-booking':'book',label:booked.current?(pt?'Cancelar reserva':'Cancel booking'):(pt?'Reservar aula':'Book class'),enabled:true,params}]},{key:'8:'+date,schedule_id:8,date,booked:true,reason:pt?'Prazo de cancelamento encerrado':'Cancellation window closed',actions:[]}],classFilters:[],family:[],alerts:[],waivers:[],history:[]}}:{success:true};}};
+ const gym={data:{accountKey:'preview',company:{name:${JSON.stringify(company.title)}},language:pt?'pt':'en',timezone:'Europe/Lisbon'},request:async(action,params)=>{if(action==='notification-read')read.current[params.id]=params.checked==='1';return {rows:notices(),unread:3};},openWeb:()=>window.alert(pt?'Pré-visualização com dados de exemplo.':'Preview with sample data.')};
+ const t={notifications:pt?'Notificações':'Notifications',close:pt?'Fechar':'Close',viewAll:pt?'Ver todas as notificações':'View all notifications',retry:pt?'Tentar novamente':'Try again',markRead:pt?'Marcar como lida':'Mark read',markUnread:pt?'Marcar como não lida':'Mark unread'};
+ return <div className="phone"><NativeFontContext.Provider value={true}><Pressable onPress={()=>setVisible(true)} style={{padding:24}}><Text>{pt?'Abrir notificações — dados de exemplo':'Open notifications — sample data'}</Text></Pressable><NativeNotifications gym={gym} bookings={bookings} base={base} t={t} color="#198754" visible={visible} onClose={()=>setVisible(false)} onUnread={()=>{}}/></NativeFontContext.Provider></div>;
+}
 function AuthPreview(){
  const [kind,setKind]=useState(new URLSearchParams(location.search).get('auth')||'login'),[notice,setNotice]=useState('');
  const [language,setLanguage]=useState(new URLSearchParams(location.search).get('lang')==='pt'?'pt':'en');
@@ -59,6 +73,7 @@ function AuthPreview(){
 }
 function App(){
  const parameters=new URLSearchParams(location.search);
+ if(parameters.has('invitationBooking'))return <InvitationPreview/>;
  if(parameters.has('auth'))return <AuthPreview/>;
  if(parameters.has('splash'))return <div className="phone"><View style={{flex:1,position:'relative',backgroundColor:'#fff',justifyContent:'center',alignItems:'center'}}><SplashArtwork/></View></div>;
  const previewTeam=parameters.get('role')==='team';

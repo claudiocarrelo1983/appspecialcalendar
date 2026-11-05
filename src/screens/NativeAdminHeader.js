@@ -18,7 +18,8 @@ export function ShareIcon({color=theme.muted}) {
     {[{left:0,top:6.5},{right:0,top:0},{right:0,bottom:0}].map((position,i)=><View key={i} style={[s.shareDot,{borderColor:color},position]}/>)}
   </View>;
 }
-export function NotificationIcon({task,color}) {
+export function NotificationIcon({task,invitation,color}) {
+  if(invitation)return <View accessible={false} style={{width:24,height:24}}><Icon name="bookings" color={color} size={22}/><View style={{position:'absolute',right:-3,bottom:-3,width:12,height:12,borderRadius:6,backgroundColor:'#f5f3ff',alignItems:'center',justifyContent:'center'}}><Text style={{color,fontSize:12,lineHeight:12}}>↗</Text></View></View>;
   if (!task) return <Icon name="bell" color={color}/>;
   return <View accessible={false} style={{width:20,height:24,borderWidth:2,borderColor:color,borderRadius:3,alignItems:'center',justifyContent:'center',gap:3}}>
     <View style={{position:'absolute',top:-4,width:10,height:6,borderWidth:2,borderColor:color,borderRadius:2,backgroundColor:'#fffbeb'}}/>
@@ -42,7 +43,7 @@ export default function NativeAdminHeader({pages,t,color,onMenu,onHome,onBack,ba
       <View style={s.identity}><Text heading numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={s.brand}>{header.company||t.dashboard}</Text>
         <Text numberOfLines={1} accessibilityLabel={[header.user?.name,header.user?.level].filter(Boolean).join(' · ')||t.adminLabel} style={s.role}>
           {[header.user?.name,userLevelLabel(header.user?.level)].filter(Boolean).join(' · ')||t.adminLabel}</Text></View>
-      {header.notifications&&<HeaderButton label={t.notifications} count={header.notifications.count} onPress={()=>setPanel('notifications')}>
+      {header.notifications&&<HeaderButton label={t.notifications} count={header.notifications.count} onPress={()=>{pages.refreshNotifications?.();setPanel('notifications');}}>
         <Icon name="bell" color={theme.muted}/></HeaderButton>}
       <HeaderButton label={t.menu} onPress={onMenu}><Text style={s.menuIcon}>☰</Text></HeaderButton>
     </View>
@@ -67,8 +68,8 @@ export default function NativeAdminHeader({pages,t,color,onMenu,onHome,onBack,ba
             {option.value===header.language.value&&<Icon name="check" color={color}/>}</Pressable>)}
           {panel==='notifications'&&<>
             {!header.notifications?.rows.length&&<Text style={s.empty}>{t.emptyNotifications}</Text>}
-            {header.notifications?.rows.map(row=>{const task=row.type==='task',accent=task?'#b45309':color;return <View key={row.id} style={[s.notice,{backgroundColor:row.read?'#fff':brandSoft(accent,.05)},task&&{borderColor:brandSoft(accent,.25)}]}>
-              <View style={[s.iconPlate,{backgroundColor:brandSoft(accent)}]}><NotificationIcon task={task} color={accent}/></View>
+            {header.notifications?.rows.map(row=>{const task=row.type==='task',invitation=row.type==='class-invitation',accent=task?'#b45309':invitation?'#7c3aed':color;return <View key={row.id} style={[s.notice,{backgroundColor:row.read&&!invitation?'#fff':brandSoft(accent,.05)},(task||invitation)&&{borderColor:brandSoft(accent,.25)}]}>
+              <View style={[s.iconPlate,{backgroundColor:brandSoft(accent)}]}><NotificationIcon task={task} invitation={invitation} color={accent}/></View>
               <Pressable accessibilityRole={row.url?'button':undefined} disabled={!row.url} style={{flex:1,gap:6}} onPress={()=>open(row.url)}>
                 <Text heading style={s.noticeTitle}>{row.title}</Text><Text style={s.body}>{row.body}</Text><Text style={s.meta}>{row.meta}</Text></Pressable>
               {row.control&&<Switch accessibilityLabel={(task?(pages.document.language==='pt'?(row.read?'Reabrir tarefa':'Concluir tarefa'):(row.read?'Reopen task':'Complete task')):(row.read?t.markUnread:t.markRead))+': '+row.title} value={row.read}

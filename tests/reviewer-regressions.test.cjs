@@ -19,8 +19,31 @@ test('QR scanner opens a confirmation route only for a validated member QR',()=>
  const pages=load('nativeAdminPages.js',{'./nativeGymCore':core,'./summaryCardLayout':{},'./subcategoryTabs':{}}),base='https://ftx.example',config={companyCode:'ftx',origins:[base]};
  const url=new URL(pages.adminMemberCheckinTarget(base+'/clients-list/view/1619',config,base));
  assert.equal(url.pathname,'/gym-checkin/index');assert.equal(url.searchParams.get('member_id'),'1619');
- assert.equal(new URL(pages.adminMemberCheckinTarget(base+'/clients-list/view/1619',{...config,checkinAllowed:false},base)).pathname,'/clients-list/view');
+ assert.equal(new URL(pages.adminMemberCheckinTarget(base+'/clients-list/view/1619',{...config,checkinAllowed:false},base)).pathname,'/gym-checkin/index');
  for(const value of ['https://evil.example/clients-list/view/1619',base+'/clients-list/view/1619?company_code=demo',base+'/logout'])assert.equal(pages.adminMemberCheckinTarget(value,config,base),null);
+});
+
+test('website QR scanner uses the same member confirmation destination as the native scanner',()=>{
+ const window={};vm.runInNewContext(fs.readFileSync('deployment/qr-checkin-destination/frontend/web/js/gym-qr-scanner.js','utf8'),{window,URL});
+ const base='https://ftx.example',config={companyCode:'ftx',origins:[base],destination:base+'/clients-list/view',checkinDestination:base+'/gym-checkin/index'};
+ const target=new URL(window.gymMemberQrTarget(base+'/clients-list/view/1619',config));
+ assert.equal(target.pathname,'/gym-checkin/index');assert.equal(target.searchParams.get('member_id'),'1619');assert.equal(target.searchParams.get('company_code'),'ftx');
+ assert.equal(window.gymMemberQrTarget('https://evil.example/clients-list/view/1619',config),null);
+ assert.equal(window.gymMemberQrTarget(base+'/clients-list/view/1619',{...config,checkinDestination:'https://evil.example/gym-checkin/index'}),null);
+});
+
+test('injected overlay CSS parses and hides a late website loader inside the app',()=>{
+ const {JSDOM}=require('jsdom');
+ const source=fs.readFileSync('src/screens/WebViewScreen.js','utf8');
+ const literal=source.match(/const SITE_OVERLAY_HIDE_SCRIPT = (`[\s\S]*?`);/)[1];
+ const script=vm.runInNewContext(literal);
+ const dom=new JSDOM('<html><head></head><body><div class="bounce-loader">Spinner</div></body></html>',{runScripts:'outside-only'});
+ dom.window.setInterval=()=>1;dom.window.setTimeout=()=>1;
+ dom.window.eval(script);
+ const css=dom.window.document.getElementById('__ftx_hide_loading_overlay');
+ assert.ok(css.sheet.cssRules.length>=2);
+ assert.equal(dom.window.getComputedStyle(dom.window.document.querySelector('.bounce-loader')).display,'none');
+ dom.window.close();
 });
 test('calendar keeps the same UTC instant across phone timezones and documents club time',()=>{
  const bridge=load('calendarBridge.js');

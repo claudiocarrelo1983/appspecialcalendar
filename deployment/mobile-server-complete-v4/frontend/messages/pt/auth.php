@@ -1,0 +1,28 @@
+<?php
+// Keep authentication copy reliable even when generated catalogues are incomplete.
+return [
+    'subdomain_mobile_sign_in' => 'Iniciar sessão',
+    'password_reset_link_invalid' => 'Esta ligação de recuperação é inválida ou expirou. Peça uma nova ligação para continuar.',
+    'password_reset_request_new' => 'Pedir nova ligação de recuperação',
+    'password_reset_completed' => 'A nova palavra-passe foi guardada. Já pode iniciar sessão.',
+    'password_reset_save' => 'Guardar nova palavra-passe',
+    'password_reset_title' => 'Redefinir palavra-passe',
+    'signup_form_expired' => 'O formulário de registo expirou. Preencha o formulário atualizado e envie-o novamente.',
+    'signup_ready_to_login' => 'A sua conta está pronta com um período gratuito de 15 dias. Já pode iniciar sessão.',
+    'Login' => 'Login',
+    'login' => 'Login',
+    'login_label_username_2' => 'Utilizador ou email',
+    'login_label_password_2' => 'Palavra-passe',
+    'login_button_2' => 'Login',
+    'login_block_dont_have_account_question' => 'Ainda não tem conta?',
+    'login_block_forgot_password_2' => 'Esqueceu-se da palavra-passe?',
+    'show_password' => 'Mostrar palavra-passe',
+    'hide_password' => 'Ocultar palavra-passe',
+    'register' => 'Registo',
+    'login_question' => 'Já tem uma conta?',
+    'resend_request_password_reset_email_title' => 'Introduza o seu email para solicitar a recuperação da palavra-passe.',
+    'resend_request_password_reset_email_success_message' => 'Consulte o seu email para obter as instruções de recuperação da palavra-passe.',
+    'verify_email_message_error' => 'Não foi possível enviar o email. Tente novamente.',
+    'submit_button' => 'Enviar',
+    'email' => 'Endereço de email',
+];

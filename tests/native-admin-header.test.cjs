@@ -16,6 +16,15 @@ function harness(file,extra={}){
   return {exports,mocks,render:(component,props)=>{cursor=0;const tree=component(props);while(effects.length)effects.shift()();return tree;}};
 }
 function nodes(tree){return !tree||typeof tree!=='object'?[]:[tree,...(tree.props?.children||[]).flat(Infinity).flatMap(nodes)];}
+test('busy admin loader fills the frame instead of occupying footer layout space',()=>{
+ const h=harness('NativeAdminFrame.js',{'../utils/nativeAdminPages':{adminPageLabels:()=>({})}});
+ const page={url:'https://club.example/dashboard-gym',kind:'web'};
+ const props={pages:{document:{page,header:{},footer:[],menuTree:[],accountActions:[]},page,startup:'active',busy:true},admin:{screen:'web'}};
+ const overlay=nodes(h.render(h.exports.default,props)).find(n=>n.props.testID==='native-admin-loading');
+ assert.equal(overlay.props.style.position,'absolute');
+ for(const edge of ['top','right','bottom','left'])assert.equal(overlay.props.style[edge],0);
+ assert.equal(overlay.props.style.justifyContent,'center');assert.equal(overlay.props.style.alignItems,'center');
+});
 const t=Object.fromEntries(['dashboard','back','menu','close','language','notifications','share','birthdays','markRead','markUnread','emptyNotifications','emptyBirthdays'].map(value=>[value,value]));
 test('company logo uses the uploaded aspect ratio without square or circular clipping',()=>{
   const h=harness('NativeCompanyLogo.js'),Logo=h.exports.default;
