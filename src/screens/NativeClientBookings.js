@@ -58,7 +58,8 @@ export default function NativeClientBookings({bookings,language='en',color,base,
     {row.actions.slice(1).map(action=>bookingButton(action))}
   </View>;
   const knownErrors=['connection','offline','server','request_failed','invalid_response','navigating','forbidden','push_permission','csrf_unavailable'];
-  const errorText=bookings.error==='push_permission'?(pt?'Ative as notificações para receber alertas de abertura.':'Enable notifications to receive booking alerts.'):
+    const errorText=['connection','offline'].includes(bookings.error)?(pt?'A ligação foi interrompida. Não foi possível confirmar as aulas atualizadas. Tente novamente.':'The connection was interrupted. Updated classes could not be confirmed. Try again.'):
+      bookings.error==='push_permission'?(pt?'Ative as notificações para receber alertas de abertura.':'Enable notifications to receive booking alerts.'):
     knownErrors.includes(bookings.error)?(pt?'Não foi possível atualizar as aulas. Tente novamente.':'Could not update classes. Try again.'):bookings.error;
   if(!page)return <View testID="native-client-bookings-startup" style={s.loading}>
     {!bookings.error?<View testID="native-client-bookings-spinner" style={{alignItems:'center',justifyContent:'center',gap:14}}>

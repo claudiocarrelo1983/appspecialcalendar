@@ -5,7 +5,7 @@ import {authPageKind} from './nativeAuthCore';
 import * as SecureStore from 'expo-secure-store';
 import * as Notifications from 'expo-notifications';
 import { cancelTimerAlert } from './nativeTimerAlerts';
-import { gymRequestScript, nativeShellStyleScript, authPageReadyScript, NATIVE_AUTH_READY, NATIVE_GYM_MESSAGE, sameGymOrigin, isClientDashboard, validSnapshot, WEB_ROUTES } from './nativeGymCore';
+import { gymRequestScript, nativeShellStyleScript, authPageReadyScript, NATIVE_AUTH_READY, NATIVE_GYM_MESSAGE, sameGymOrigin, isClientDashboard, clientWebSection, validSnapshot, WEB_ROUTES } from './nativeGymCore';
 
 export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
   const [data, setData] = useState(null);
@@ -131,8 +131,9 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
     if (!isClientDashboard(url,startUrl)) setBootstrapState('idle');
     else if(!dataRef.current){setBootstrapState('loading');setBootstrapError('');}
     if(sameGymOrigin(url,startUrl)){
-      const pathname=new URL(url).pathname.replace(/\/$/,'');
-      setWebSection(Object.keys(WEB_ROUTES).find(key=>WEB_ROUTES[key]===pathname||pathname.startsWith(WEB_ROUTES[key]+'/'))||'bookings');
+      // Unlisted pages (legal pages and performance subpages included) must stay
+      // visible in the WebView, rather than being covered by native bookings.
+      setWebSection(clientWebSection(url,startUrl));
     }
     if(dataRef.current && sameGymOrigin(url,startUrl))changeScreen('web');
     generation.current++; refreshSequence.current++;
@@ -142,6 +143,7 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
   }, [startUrl, clear, changeScreen]);
   const onLoadEnd = useCallback((event) => {
     const url = event?.nativeEvent?.url || documentUrl.current;
+    const changedDocument=url!==documentUrl.current;
     documentUrl.current = url;
     if (!sameGymOrigin(url, startUrl)) return;
     if(webTarget&&new URL(url).pathname.replace(/\/index\/?$|\/$/,'')===new URL(webTarget).pathname.replace(/\/$/,''))setWebTarget(null);
@@ -150,6 +152,10 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
       if (authKind==='login') onAuthPageReady(url);
       webViewRef.current?.injectJavaScript(nativeShellStyleScript(false,startUrl));return;
     }
+    // WKWebView redirects may finish without a corresponding load-start event.
+    // Reconcile the final document before exposing any native page overlay.
+    setWebSection(clientWebSection(url,startUrl));
+    if(dataRef.current&&changedDocument)changeScreen('web');
     // Keep shared classes and notification details visible in the web booking flow.
     const target = new URL(url);
     // The company's root is its login page. Wait for the authenticated redirect
@@ -225,6 +231,7 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
     try {
       const next = await request('language', {language});
       if (!mounted.current || !accept(next)) return;
+      webViewRef.current?.injectJavaScript('try{localStorage.setItem("sc.app.language.choice",'+JSON.stringify(language)+');}catch{}true;');
       // A web page needs new translated HTML; native views update from the DTO.
       if (screenRef.current === 'web' && webSection !== 'bookings' && sameGymOrigin(documentUrl.current,startUrl)) {
         webViewRef.current?.injectJavaScript('location.reload();true;');

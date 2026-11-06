@@ -1,0 +1,1 @@
+Upload the two frontend/views PHP files into your website root, preserving paths. Signed-in Settings -> Privacy omits the complete public legal-links footer and Back to sign in. Guest legal pages and the login legal-links partial are unchanged. No database changes. Applies to FTX and Demo.

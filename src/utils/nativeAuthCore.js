@@ -71,7 +71,7 @@ const AUTH_LANGUAGE_SOURCE=String.raw`function(c){
   fetch('/site/language',{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,
     headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':token},body:new URLSearchParams({lang:c.language,[param]:token}).toString()})
     .then(async response=>{const final=new URL(response.url||'/site/language',location.href);if(!response.ok||final.origin!==c.origin||(await response.text()).trim()!==c.language)throw Error('language');
-      if(location.href!==c.url||window.__scNativeAuth?.revision!==c.revision)return;send(true);location.reload();})
+      if(location.href!==c.url||window.__scNativeAuth?.revision!==c.revision)return;try{localStorage.setItem('sc.app.language.choice',c.language);}catch{}send(true);location.reload();})
     .catch(()=>{if(location.href===c.url&&window.__scNativeAuth?.revision===c.revision)send(false);}).finally(()=>clearTimeout(timeout));
 }`;
 export function nativeAuthScript(base){return '('+AUTH_SOURCE+')('+JSON.stringify({base,origin:new URL(base).origin})+','+AUTH_KIND_SOURCE+');true;';}

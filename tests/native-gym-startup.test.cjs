@@ -50,6 +50,47 @@ function hook() {
   };
 }
 
+test('settings legal and performance links retain the member session and expose their WebView',async()=>{
+ const p=hook(),initial=p.request();p.reply(initial,200,snapshot());await initial.promise;
+ for(const route of ['privacy-policy?pagecode=club','profile/delete-account','fitness-assessments-client','body-measurements-client','personal-records-client','progress-photos-client','fitness-goals-client','performance-reports-client']){
+  p.render().onNavigation(start+route);
+  const gym=p.render();
+  assert.ok(gym.data,route);assert.equal(gym.screen,'web',route);
+  assert.notEqual(gym.webSection,'bookings',route);
+ }
+ p.render().onNavigation(start+'dashboard-gym-client');
+ assert.equal(p.render().webSection,'bookings');
+});
+
+test('all screenshot destinations remain visible through final-load redirects without a load-start event',async()=>{
+ const p=hook(),initial=p.request();p.reply(initial,200,snapshot());await initial.promise;
+ const destinations=['privacy-policy?pagecode=c20260531125358085','profile/delete-account','profile','change-password','login-history',
+  'group-notifications','performance-dashboard-client','fitness-assessments-client/index','body-measurements-client',
+  'personal-records-client','progress-photos-client','fitness-goals-client','performance-reports-client'];
+ for(const route of destinations){
+  p.render().showBookings();
+  p.render().onLoadEnd({nativeEvent:{url:start+route}});
+  const gym=p.render(),child={type:'WebView',props:{url:start+route}};
+  assert.ok(gym.data,route);assert.equal(gym.screen,'web',route);assert.notEqual(gym.webSection,'bookings',route);
+  const tree=nodes(shell(gym,child,{bookings:{page:{}}}));
+  const wrapper=tree.find(node=>node.props.children?.includes(child));
+  assert.equal(wrapper.props.pointerEvents,'auto',route);
+  assert.equal(wrapper.props.accessibilityElementsHidden,false,route);
+  assert.ok(!tree.some(node=>node.type==='ClientBookings'),route);
+ }
+ p.render().select('timer');
+ p.render().onLoadEnd({nativeEvent:{url:start+destinations.at(-1)}});
+ assert.equal(p.render().screen,'timer','A background completion must not replace a native tab');
+ p.render().onNavigation(start+'dashboard-gym-client/index');
+ assert.equal(p.render().webSection,'bookings');
+});
+
+test('only the actual client dashboard maps to native bookings',()=>{
+ for(const route of ['dashboard-gym-client','dashboard-gym-client/index?date=2026-11-06'])assert.equal(core.clientWebSection(start+route,start),'bookings');
+ for(const route of ['dashboard-gym-client/native-schedule','dashboard-gym-client/book','privacy-policy','profile/delete-account'])assert.notEqual(core.clientWebSection(start+route,start),'bookings');
+ assert.equal(core.clientWebSection('https://foreign.example/dashboard-gym-client',start),'web');
+});
+
 test('View all notifications forces the inbox source and repeated opens cannot retain the old class document',async()=>{
  const p=hook(),initial=p.request();p.reply(initial,200,snapshot());await initial.promise;
  p.render().openWeb('notifications');

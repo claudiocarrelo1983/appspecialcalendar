@@ -43,4 +43,5 @@ $html=Yii::$app->view->renderFile($workspace.'/frontend/views/gym-checkin/index.
 expect(str_contains($html,'member-checkin-title'),'Client-view Team can see the member confirmation');
 expect(!str_contains($html,'checkin-history-title')&&!str_contains($html,'id="member-checkin-form"'),'Client-view alone must not expose attendance history or mutations');
 expect(str_contains($html,'data-checkin-client-details="1"'),'Client-view permission retains the details button');
+expect(!str_contains($html,'alert-info')&&!str_contains($html,'qr_checkin_permission_hint'),'Client-view confirmation must not show the blue attendance warning');
 echo "Check-in layout: $checks combined checks passed.\n";

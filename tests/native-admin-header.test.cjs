@@ -37,16 +37,49 @@ const t=Object.fromEntries(['dashboard','back','menu','close','language','notifi
 test('company logo uses the uploaded aspect ratio without square or circular clipping',()=>{
   const h=harness('NativeCompanyLogo.js'),Logo=h.exports.default;
   const props={url:'https://club.example/logo.png',label:'Club'};
-  let image=h.render(Logo,props);
+  let image=nodes(h.render(Logo,props)).find(n=>n.props.onLoad);
   image.props.onLoad({nativeEvent:{source:{width:300,height:100}}});
-  image=h.render(Logo,props);
+  image=nodes(h.render(Logo,props)).find(n=>n.props.onLoad);
   assert.equal(image.props.style.width/image.props.style.height,3);
   assert.equal(image.props.style.width,104);
   assert.equal(image.props.style.borderRadius,undefined);
   image.props.onLoad({nativeEvent:{source:{width:100,height:200}}});
-  image=h.render(Logo,props);
+  image=nodes(h.render(Logo,props)).find(n=>n.props.onLoad);
   assert.equal(image.props.style.width,22);
   assert.equal(image.props.style.height,44);
+});
+
+test('header always shows the bundled logo while a remote logo is pending or fails',()=>{
+ const h=harness('NativeCompanyLogo.js'),props={url:'https://club.example/logo.png',label:'Club'};
+ let tree=nodes(h.render(h.exports.default,props));
+ assert.equal(tree.find(n=>n.type==='Image'&&n.props.source===1).props.style.opacity,1);
+ const remote=tree.find(n=>n.props.onLoad);
+ remote.props.onLoad({nativeEvent:{source:{width:200,height:100}}});
+ tree=nodes(h.render(h.exports.default,props));
+ assert.equal(tree.find(n=>n.props.onLoad).props.style.opacity,1);
+ tree=nodes(h.render(h.exports.default,{...props,url:'https://club.example/changed.png'}));
+ assert.equal(tree.find(n=>n.type==='Image'&&n.props.source===1).props.style.opacity,1);
+ tree.find(n=>n.props.onError).props.onError();
+ tree=nodes(h.render(h.exports.default,{...props,url:'https://club.example/changed.png'}));
+ assert.equal(tree.filter(n=>n.type==='Image').length,1);
+ assert.equal(tree.find(n=>n.type==='Image').props.style.opacity,1);
+});
+
+test('startup with an absent company logo renders its bundled fallback without reading a null remote state',()=>{
+ for(const url of [undefined,null,'']){
+  const h=harness('NativeCompanyLogo.js');
+  const tree=nodes(h.render(h.exports.default,{url,label:'Club'}));
+  const images=tree.filter(n=>n.type==='Image');
+  assert.equal(images.length,1);assert.equal(images[0].props.source,1);
+  assert.equal(images[0].props.style.opacity,1);
+  assert.ok(Number.isFinite(images[0].props.style.width));
+ }
+ const h=harness('NativeCompanyLogo.js');
+ let tree=nodes(h.render(h.exports.default,{url:'https://club.example/logo.png'}));
+ tree.find(n=>n.props.onLoad).props.onLoad({nativeEvent:{source:{width:200,height:100}}});
+ tree=nodes(h.render(h.exports.default,{}));
+ assert.equal(tree.filter(n=>n.type==='Image').length,1);
+ assert.equal(tree.find(n=>n.type==='Image').props.style.opacity,1);
 });
 test('native header exposes every screenshot action and uses native notification controls',()=>{
   const changes=[],shared=[];

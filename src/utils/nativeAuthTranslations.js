@@ -13,6 +13,9 @@ export function authText(value,language){
   const pair=pairs.find(pair=>pair.some(item=>item.toLocaleLowerCase()===text.trim().toLocaleLowerCase()));
   return pair?pair[language==='pt'?1:0]:text;
 }
-export function deviceAuthLanguage(){
-  try{return Intl.DateTimeFormat().resolvedOptions().locale.toLowerCase().startsWith('pt')?'pt':'en';}catch{return 'en';}
+export function deviceAuthLanguage(preferredLocales=[]){
+  try{
+    const first=preferredLocales.find(value=>typeof value==='string'&&value.trim())||Intl.DateTimeFormat().resolvedOptions().locale;
+    return /^pt(?:[-_]|$)/i.test(first)?'pt':'en';
+  }catch{return 'en';}
 }

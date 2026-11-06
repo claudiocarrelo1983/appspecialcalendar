@@ -23,6 +23,7 @@ import offlinePass from '../utils/offlinePass';
 import useNativeAuth from '../utils/useNativeAuth';
 import NativeAuthScreen from './NativeAuthScreen';
 import {authLinkTarget} from '../utils/nativeAuthCore';
+import {appLanguageScript} from '../utils/appLanguage';
 import {isClientDashboard} from '../utils/nativeGymCore';
 import useClientBookings from '../utils/useClientBookings';
 import Constants from 'expo-constants';
@@ -516,8 +517,8 @@ export default function WebViewScreen({ onInitialLoadComplete, onThemeChange }) 
       source={{ uri: webViewUrl }}
       style={styles.webView}
       containerStyle={styles.container}
-      injectedJavaScript={nativeAuth.injectedScript + nativeGym.injectedScript + FITNESS_OAUTH_BRIDGE_SCRIPT + HEALTH_BRIDGE_SCRIPT + CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT + (Platform.OS === 'ios' ? WEBVIEW_MODAL_SCRIPT : '') + nativeAdmin.injectedScript + positionRestoreScript(START_URL)}
-      injectedJavaScriptBeforeContentLoaded={nativeAuth.injectedScript + nativeGym.injectedScript + FITNESS_OAUTH_BRIDGE_SCRIPT + HEALTH_BRIDGE_SCRIPT + CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT + (Platform.OS === 'ios' ? WEBVIEW_MODAL_SCRIPT : '') + nativeAdmin.injectedScript + positionRestoreScript(START_URL)}
+      injectedJavaScript={appLanguageScript(START_URL) + nativeAuth.injectedScript + nativeGym.injectedScript + FITNESS_OAUTH_BRIDGE_SCRIPT + HEALTH_BRIDGE_SCRIPT + CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT + (Platform.OS === 'ios' ? WEBVIEW_MODAL_SCRIPT : '') + nativeAdmin.injectedScript + positionRestoreScript(START_URL)}
+      injectedJavaScriptBeforeContentLoaded={appLanguageScript(START_URL) + nativeAuth.injectedScript + nativeGym.injectedScript + FITNESS_OAUTH_BRIDGE_SCRIPT + HEALTH_BRIDGE_SCRIPT + CALENDAR_BRIDGE_SCRIPT + SITE_OVERLAY_HIDE_SCRIPT + NATIVE_FEEL_SCRIPT + WEBVIEW_SCROLL_SCRIPT + (Platform.OS === 'ios' ? WEBVIEW_MODAL_SCRIPT : '') + nativeAdmin.injectedScript + positionRestoreScript(START_URL)}
       onMessage={onWebViewMessage}
       onLoadStart={({ nativeEvent }) => { if(!recovery.start(nativeEvent.url,recovery.revision))return;nativeAuth.onNavigation(nativeEvent.url);clientBookings.onNavigation(nativeEvent.url);nativeGym.onNavigation(nativeEvent.url); nativeAdmin.onNavigation(nativeEvent.url); adminPages.onNavigation(nativeEvent.url); healthDocument.current = {url: nativeEvent.url || '', version: healthDocument.current.version + 1}; }}
       onLoadEnd={handleLoadEnd}

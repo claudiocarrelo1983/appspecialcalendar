@@ -1,0 +1,12 @@
+FTX Team screenshot renders — Portuguese and English
+
+iPhone 6.3: 1206 x 2622 PNG
+iPad 13: 2064 x 2752 PNG
+Android phone: 1080 x 1920 PNG
+
+SOURCE: Captured from the current app React Native components rendered with react-native-web and fictional sample data. These are NOT screenshots from a signed-in physical iPhone, Android or iPad. Native OS features (calendar, camera, Health and notification delivery) are stubbed in this local render. No real personal data or usable member QR is included.
+
+Before submitting, compare against the installed release for each platform, particularly iPad layout, native fonts and UI. Use PT or EN according to the listing language. PNG sizes match the store upload slots. These are screenshots, not app preview videos.
+
+Apple requirements: https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications/
+Google requirements: https://support.google.com/googleplay/android-developer/answer/9866151

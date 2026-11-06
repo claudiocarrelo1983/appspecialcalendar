@@ -19,10 +19,10 @@ export function clientBookingsScript(base,id,action='schedule',params={}){
 const SOURCE=String.raw`async function(c){
   if(location.origin!==c.origin||!window.ReactNativeWebView)return;
   const send=value=>window.ReactNativeWebView.postMessage(JSON.stringify({type:'sc.clientBookings',id:c.id,...value}));
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);
+  let timer;
   try{
     let path='/dashboard-gym-client/'+(c.action==='schedule'?'native-schedule':c.action);
-    const options={credentials:'same-origin',cache:'no-store',signal:controller.signal,headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}};
+    const options={credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest'}};
     if(c.action==='schedule')path+='?'+new URLSearchParams(c.params);
     else{
       const csrf=document.querySelector('meta[name="csrf-token"]')?.content;if(!csrf)throw Error('csrf_unavailable');
@@ -34,9 +34,22 @@ const SOURCE=String.raw`async function(c){
       path+='?'+new URLSearchParams(query);
       options.method='POST';options.headers['X-CSRF-Token']=csrf;options.headers['Content-Type']='application/x-www-form-urlencoded';options.body=new URLSearchParams(c.params).toString();
     }
-    const response=await fetch(path,options),final=new URL(response.url||path,location.href);
+    // Retry only reads: a disconnected POST may already have been committed.
+    async function readResponse(){
+      const attempts=c.action==='schedule'?2:1;
+      for(let attempt=0;attempt<attempts;attempt++){
+        const controller=new AbortController();timer=setTimeout(()=>controller.abort(),12000);
+        try{
+          const response=await fetch(path,{...options,signal:controller.signal});
+          const body=await response.text();
+          return {response,body};
+        }catch(error){if(attempt===attempts-1)throw error;}
+        finally{clearTimeout(timer);}
+      }
+    }
+    const {response,body}=await readResponse(),final=new URL(response.url||path,location.href);
     if(final.origin!==c.origin||/\/(?:site\/)?login\/?$/.test(final.pathname)){send({status:401,result:{success:false}});return;}
-    const body=await response.text();let result;
+    let result;
     try{result=JSON.parse(body);}catch{
       if(c.action==='sign-waiver'&&response.ok&&/^\/dashboard-gym-client(?:\/index)?\/?$/.test(final.pathname)){
         const root=new DOMParser().parseFromString(body,'text/html'),success=root.querySelector('#gymClientFlash .alert-success');

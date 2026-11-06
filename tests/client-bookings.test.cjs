@@ -9,6 +9,30 @@ test('client bridge keeps CSRF in the document and only calls supported same-ori
  await new Promise(setImmediate);assert.equal(calls.length,1);assert.ok(calls[0].url.startsWith('/dashboard-gym-client/book?'));assert.equal(calls[0].options.headers['X-CSRF-Token'],'csrf-private');assert.ok(calls[0].options.body.includes('client_guid=child'));assert.ok(!calls[0].options.body.includes('drop-me'));assert.ok(!JSON.stringify(messages).includes('csrf-private'));
 });
 
+test('schedule retries an interrupted connection once; booking mutations and HTTP failures never replay',async()=>{
+ for(const scenario of ['schedule','book','http','body','offline']){
+  const messages=[],signals=[];let calls=0;
+  vm.runInNewContext(core.clientBookingsScript(base,'retry',scenario==='book'?'book':'schedule',{}),{
+   URL,URLSearchParams,AbortController,setTimeout,clearTimeout,
+   location:{origin:base,href:base+'/dashboard-gym-client'},document:{querySelector:()=>({content:'csrf'})},
+   window:{ReactNativeWebView:{postMessage:value=>messages.push(JSON.parse(value))}},
+   fetch:async(url,options)=>{
+    calls++;signals.push(options.signal);
+    if(scenario==='offline'||(calls===1&&['schedule','book'].includes(scenario)))throw Error('Network request failed');
+    return {url:base+url,status:scenario==='http'?403:200,text:async()=>{
+     if(scenario==='body'&&calls===1)throw Error('Connection lost while reading');
+     return JSON.stringify({success:scenario!=='http',data:snapshot()});
+    }};
+   }
+  });
+  await new Promise(setImmediate);
+  assert.equal(calls,['book','http'].includes(scenario)?1:2,scenario);
+  assert.equal(messages.length,1,scenario);
+  assert.equal(messages[0].status,scenario==='http'?403:['book','offline'].includes(scenario)?0:200,scenario);
+  if(calls===2)assert.notEqual(signals[0],signals[1],'Each retry gets a fresh timeout signal');
+ }
+});
+
 test('opening alerts wait for push permission and do not save when registration is refused',async()=>{
  const messages=[],calls=[];
  vm.runInNewContext(core.clientBookingsScript(base,'alerts','booking-alert',{class_code:'muay',company_code:'ftx',enabled:'1'}),{URL,URLSearchParams,AbortController,setTimeout,clearTimeout,location:{origin:base,href:base+'/dashboard-gym-client'},document:{querySelector:()=>({content:'csrf-private'})},window:{SpecialCalendarPush:{ensureRegistered:async()=>{throw Error('denied');}},ReactNativeWebView:{postMessage:value=>messages.push(JSON.parse(value))}},fetch:async(...args)=>calls.push(args)});

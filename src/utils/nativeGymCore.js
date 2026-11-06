@@ -8,6 +8,13 @@ export const WEB_ROUTES = {
   profile: '/profile', performance: '/performance-dashboard-client',
   packages: '/personal-classes/client-index', notifications: '/group-notifications',
 };
+export function clientWebSection(url,startUrl){
+  if(!sameGymOrigin(url,startUrl))return 'web';
+  if(isClientDashboard(url,startUrl))return 'bookings';
+  const pathname=new URL(url).pathname.replace(/\/$/,'');
+  if(/^\/(?:performance-dashboard|fitness-assessments|body-measurements|personal-records|progress-photos|fitness-goals|performance-reports)-client(?:\/|$)/.test(pathname))return 'performance';
+  return Object.keys(WEB_ROUTES).find(key=>key!=='bookings'&&(WEB_ROUTES[key]===pathname||pathname.startsWith(WEB_ROUTES[key]+'/')))||'web';
+}
 export function nativeShellStyleScript(enabled,startUrl,color,holdClient=false) {
   const primary=/^#[a-f0-9]{6}$/i.test(color||'')?color:'#0d6efd';
   const css=[
@@ -22,8 +29,49 @@ export function nativeShellStyleScript(enabled,startUrl,color,holdClient=false) 
     '.sc-native-shell{--sc-primary:'+primary+';--sc-primary-rgb:'+ [1,3,5].map(i=>parseInt(primary.slice(i,i+2),16)).join(',')+'}',
   ].join('');
   return '(function(c){if(location.origin!==c.origin)return;window.__scNativeShellConfig=c;if(!c.holdClient)window.__scNativeClientResolved=true;function apply(){c=window.__scNativeShellConfig;var root=document.documentElement;if(!root)return;root.classList.toggle("sc-native-client-startup",!!c.holdClient&&!c.enabled&&!window.__scNativeClientResolved&&/^\\/dashboard-gym-client(?:\\/index)?\\/?$/.test(location.pathname));root.classList.toggle("sc-native-shell",c.enabled);var style=document.getElementById("sc-native-shell-style");if(!style){style=document.createElement("style");style.id="sc-native-shell-style";(document.head||root).appendChild(style);}style.textContent=c.css;}apply();document.addEventListener("DOMContentLoaded",apply,{once:true});})('
-    +JSON.stringify({enabled,holdClient,origin:new URL(startUrl).origin,css})+');true;';
+    +JSON.stringify({enabled,holdClient,origin:new URL(startUrl).origin,css})+');true;'+memberLegalNavigationScript(enabled,startUrl);
 }
+export function memberLegalNavigationScript(enabled,startUrl){
+  return '('+MEMBER_LEGAL_SOURCE+')('+JSON.stringify({enabled,origin:new URL(startUrl).origin})+');true;';
+}
+const MEMBER_LEGAL_SOURCE=String.raw`function(c){
+  if(!c.enabled||location.origin!==c.origin||!window.ReactNativeWebView)return;
+  function apply(){
+    if(!window.__scNativeShellConfig?.enabled)return;
+    const pt=(document.documentElement.lang||'').toLowerCase().startsWith('pt');
+    const legal=/^\/(?:privacy-policy|terms-and-conditions|account-deletion)(?:\/|$)/.test(location.pathname);
+    if(legal){
+      const page=document.querySelector('.company-legal-page');
+      if(!page)return;
+      // Signed-in Settings has its own navigation. Do not display the public
+      // login/legal footer inside the app, or rewrite any of its login links.
+      for(const element of page.querySelectorAll('.company-legal-header, .public-legal-links, .company-legal-card > .text-center')){
+        element.hidden=true;element.style.setProperty('display','none','important');
+      }
+    }
+    if(!/^\/client-settings(?:\/index)?\/?$/.test(location.pathname))return;
+    const section=document.querySelector('#client-settings-account');
+    if(!section||section.querySelector('[data-member-legal-group]'))return;
+    const privacy=Array.from(section.querySelectorAll('a.client-settings-account-link')).find(link=>{
+      try{const url=new URL(link.href,location.href);return url.origin===c.origin&&/^\/privacy-policy\/?$/.test(url.pathname);}catch{return false;}
+    });
+    if(!privacy)return;
+    const privacyUrl=new URL(privacy.href,location.href);privacyUrl.searchParams.set('legal_context','member-settings');privacy.href=privacyUrl.href;
+    const group=document.createElement('details'),heading=document.createElement('summary'),links=document.createElement('nav');
+    group.setAttribute('data-member-legal-group','');heading.className=privacy.className;
+    heading.style.listStyle='none';heading.style.cursor='pointer';heading.innerHTML=privacy.innerHTML;
+    links.style.paddingLeft='24px';links.setAttribute('aria-label',pt?'Documentos legais':'Legal documents');
+    privacy.replaceWith(group);group.append(heading,links);links.append(privacy);
+    const original=new URL(privacy.href,location.href);
+    for(const [path,label,icon] of [['/terms-and-conditions',pt?'Termos e Condições':'Terms and Conditions','bx-file'],['/account-deletion/index',pt?'Eliminação de conta e dados':'Account and Data Deletion','bx-trash']]){
+      const url=new URL(path,c.origin);if(original.searchParams.has('pagecode'))url.searchParams.set('pagecode',original.searchParams.get('pagecode'));url.searchParams.set('legal_context','member-settings');
+      const link=document.createElement('a'),symbol=document.createElement('i'),text=document.createElement('span');
+      link.href=url.href;link.className=privacy.className;symbol.className='bx '+icon;symbol.setAttribute('aria-hidden','true');text.textContent=label;
+      link.append(symbol,text);links.append(link);
+    }
+  }
+  apply();if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply,{once:true});
+}`;
 const API_ROUTES = {
   context: '/native-gym', sessions: '/native-gym/sessions',
   checkin: '/native-gym/checkin', checkout: '/native-gym/checkout',

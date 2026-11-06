@@ -11,7 +11,7 @@ export default function useClientBookings(ref,base,accountKey,showing,language){
   const scheduleLoad=useRef(null),currentLanguage=useRef(language);currentLanguage.current=language;
   const request=useCallback((action,params={})=>new Promise((resolve,reject)=>{
     if(!identity.current||!sameGymOrigin(source.current,base)||!ref.current){reject(Error('offline'));return;}
-    const id=String(++sequence.current),timer=setTimeout(()=>{pending.current.delete(id);reject(Error('connection'));},15000);
+    const id=String(++sequence.current),timer=setTimeout(()=>{pending.current.delete(id);reject(Error('connection'));},action==='schedule'?27000:15000);
     pending.current.set(id,{resolve,reject,timer});
     try{ref.current.injectJavaScript(clientBookingsScript(base,id,action,params));}catch(failure){clearTimeout(timer);pending.current.delete(id);reject(failure);}
   }),[base,ref]);
