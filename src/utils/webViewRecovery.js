@@ -54,7 +54,10 @@ export function createWebViewRecovery({base,inject,remount,change,active=true,se
     end(url,generation=revision){
       if(generation!==revision||disposed||failed)return false;
       // onLoadEnd also fires after onError; ignore a dead document's final event.
-      if(url&&url!==current)return false;
+      if(url&&url!==current){
+        if(local(url)){current=url;if(!mutation)safe=url;}
+        else return false;
+      }
       loading=false;stop('load');probe();return true;
     },
     error(event,generation=revision){

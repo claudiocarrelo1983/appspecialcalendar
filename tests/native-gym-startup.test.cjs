@@ -143,6 +143,17 @@ test('an expired session returns to sign-in instead of trapping startup on the e
   assert.ok(p.scripts.at(-1).includes('location.replace("' + start + 'login")'));
 });
 
+test('repeated 401 responses on client dashboard throttle location.replace to break infinite login loops', async () => {
+  const p = hook(), first = p.request(); p.reply(first, 401, null); await first.promise;
+  const scriptCount = p.scripts.filter(s => s.includes('location.replace')).length;
+  assert.equal(scriptCount, 1, 'First 401 injects location.replace');
+  const second = p.request(); p.reply(second, 401, null); await second.promise;
+  const scriptCountAfter = p.scripts.filter(s => s.includes('location.replace')).length;
+  assert.equal(scriptCountAfter, 1, 'Repeated 401 within throttle window does not re-inject location.replace');
+  assert.equal(p.render().bootstrapState, 'failed');
+  assert.equal(p.render().bootstrapError, 'HTTP_401');
+});
+
 test('registration and password recovery remain open without a protected context request or login bounce',async()=>{
  for(const route of ['form-signup','form-signup/index','site/signup-client','site/request-password-reset','request-password-reset','reset-password?token=SYNTHETIC']){
    const p=hook(),url=start+route;p.render().onNavigation(url);const before=p.scripts.length;

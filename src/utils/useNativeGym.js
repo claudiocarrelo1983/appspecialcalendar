@@ -18,7 +18,7 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
   const [bootstrapError,setBootstrapError] = useState('');
   const [authTransition,setAuthTransition] = useState(false);
   const [authTransitionError,setAuthTransitionError]=useState('');
-  const authTimer=useRef(null),authAttempt=useRef(0);
+  const authTimer=useRef(null),authAttempt=useRef(0),lastBounce=useRef(0);
   const pending = useRef(new Map()), sequence = useRef(0), generation = useRef(0);
   const documentUrl = useRef(startUrl), mounted = useRef(true), dataRef = useRef(null);
   const screenRef = useRef('web'), refreshSequence = useRef(0);
@@ -110,7 +110,13 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
       clear();
       const diagnostic='HTTP_'+message.status+([4101,4102,4103,4104,4105].includes(message.result?.code)?'_'+message.result.code:'');
       if (message.status === 401) {
-        webViewRef.current?.injectJavaScript('location.replace('+JSON.stringify(new URL('/login',startUrl).href)+');true;');
+        const now = Date.now();
+        if (!lastBounce.current || now - lastBounce.current > 6000) {
+          lastBounce.current = now;
+          webViewRef.current?.injectJavaScript('location.replace('+JSON.stringify(new URL('/login',startUrl).href)+');true;');
+        } else if (isClientDashboard(documentUrl.current,startUrl)) {
+          setBootstrapError(diagnostic);setBootstrapState('failed');
+        }
       } else if (isClientDashboard(documentUrl.current,startUrl)) {
         setBootstrapError(diagnostic);setBootstrapState('failed');
       }
