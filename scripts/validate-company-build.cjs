@@ -36,11 +36,13 @@ function validate(env=process.env){
     if(!fs.existsSync(target)||!fs.readFileSync(target).equals(source))throw Error('Missing/outdated native timer sound: '+target+'. Sync native timer sound resources before building.');
   }
   for(const file of files){hash.update(file+'\0');hash.update(fs.readFileSync(path.join(root,file)));}
-  for(const file of [app.icon,app.splash,app.androidGoogleServicesFile]){
+  for(const file of [app.icon,app.splash]){
     if(!fs.existsSync(path.join(root,file)))throw Error('Missing company asset: '+file);
   }
-  const firebase=JSON.parse(fs.readFileSync(path.join(root,app.androidGoogleServicesFile),'utf8'));
-  if(!firebase.client?.some(client=>client.client_info?.android_client_info?.package_name===app.appId))throw Error('Firebase configuration does not contain '+app.appId);
+  if(app.androidGoogleServicesFile && fs.existsSync(path.join(root,app.androidGoogleServicesFile))){
+    const firebase=JSON.parse(fs.readFileSync(path.join(root,app.androidGoogleServicesFile),'utf8'));
+    if(!firebase.client?.some(client=>client.client_info?.android_client_info?.package_name===app.appId))throw Error('Firebase configuration does not contain '+app.appId);
+  }
   return {base:'native-gym-v2',source:hash.digest('hex').slice(0,16),profile:env.EAS_BUILD_PROFILE||'local',
     name:app.title,package:app.appId,url:app.siteUrl,color:app.brandColor};
 }
