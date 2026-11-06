@@ -1,5 +1,5 @@
 import {NativeModules} from 'react-native';
-import {deviceAuthLanguage} from './nativeAuthTranslations';
+import {deviceAuthLanguage,resolveAppLanguage} from './nativeAuthTranslations';
 
 export function preferredPhoneLanguage(){
   try{
@@ -12,12 +12,15 @@ export function preferredPhoneLanguage(){
 
 // Runs only inside the company's app WebView. Website visitors are unaffected.
 export function appLanguageScript(base,language=preferredPhoneLanguage()){
-  return '('+SOURCE+')('+JSON.stringify({origin:new URL(base).origin,language:language==='pt'?'pt':'en'})+');true;';
+  return '('+SOURCE+')('+JSON.stringify({origin:new URL(base).origin,language:resolveAppLanguage(null,language)})+');true;';
 }
 const SOURCE=String.raw`function(c){
   if(location.origin!==c.origin||!window.ReactNativeWebView||window.__scAppLanguageInstalled)return;
   window.__scAppLanguageInstalled=true;
   async function apply(){
+    const startedUrl=location.href;
+    // A language preference must never interrupt or replay a login POST.
+    if(window.__scAuthSubmitted)return;
     const top=document.querySelector('#page-topbar[data-fitness-account]');
     const account=top?.getAttribute('data-fitness-account');
     const guest=/^\/(?:site\/)?(?:login|form-signup|request-password-reset)\/?$/.test(location.pathname)||location.pathname==='/';
@@ -37,6 +40,7 @@ const SOURCE=String.raw`function(c){
       const response=await fetch('/site/language',{method:'POST',credentials:'same-origin',cache:'no-store',signal:controller.signal,
         headers:{'Content-Type':'application/x-www-form-urlencoded','X-CSRF-Token':token},body:new URLSearchParams({lang:language,[param]:token}).toString()});
       if(!response.ok||new URL(response.url||'/site/language',location.href).origin!==c.origin||(await response.text()).trim()!==language)return;
+      if(location.href!==startedUrl||window.__scAuthSubmitted)return;
       localStorage.setItem(key,language);
       if((document.documentElement.lang||'').split(/[-_]/)[0].toLowerCase()!==language)location.reload();
     }catch{}finally{clearTimeout(timeout);}

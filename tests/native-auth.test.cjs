@@ -64,16 +64,40 @@ test('a password revealed by website JavaScript is still redacted from native sn
  const p=await page(markup.replace('id="password" type="password"','id="password" type="text"'));
  assert.equal(p.last().fields[1].type,'password');assert.equal(p.last().fields[1].value,'');assert.ok(!JSON.stringify(p.last()).includes('never-export-this'));p.dom.window.close();
 });
-function authHook(){
+function authHook(site=base){
  const slots=[],effects=[],timers=new Map(),scripts=[],urls=[];let cursor=0,sequence=0;
  const react={useState(value){const id=cursor++;if(!(id in slots))slots[id]=value;return [slots[id],value=>slots[id]=value];},useRef(value){const id=cursor++;return slots[id]||(slots[id]={current:value});},useCallback:fn=>fn,useEffect(fn,deps){const id=cursor++;if(!slots[id]){slots[id]=true;effects.push(fn);}}};
  const hook=load('utils/useNativeAuth.js',{react,'./nativeAuthCore':core,'./nativeAuthTranslations':load('utils/nativeAuthTranslations.js')},{setTimeout:fn=>{timers.set(++sequence,fn);return sequence;},clearTimeout:id=>timers.delete(id)}).default;
  const ref={current:{injectJavaScript:script=>scripts.push(script)}};
- const render=()=>{cursor=0;const state=hook(ref,base,url=>urls.push(url));while(effects.length)effects.shift()();return state;};
+ const render=()=>{cursor=0;const state=hook(ref,site,url=>urls.push(url));while(effects.length)effects.shift()();return state;};
  const message=(value,url=value.url)=>render().onMessage({url,data:JSON.stringify(value)});
- const doc=revision=>({type:core.AUTH_MESSAGE,url:base+'login',revision,kind:'login',fields:[],links:[],messages:[],canSubmit:true});
+ const doc=revision=>({type:core.AUTH_MESSAGE,url:site+'login',revision,kind:'login',fields:[],links:[],messages:[],canSubmit:true});
  return {render,message,doc,timers,scripts,urls};
 }
+
+test('iPhone completion before native URL events finishes Member, Team and Admin login in both company apps',()=>{
+ for(const company of ['c20260531125358085','c20261027151705426'])for(const role of ['member','team','admin']){
+  const site='https://'+company+'.specialcalendar.com/',h=authHook(site),destination=site+(role==='member'?'dashboard-gym-client':'dashboard-gym')+'/index';
+  h.render().onNavigation(site+'login');h.message(h.doc('login'));
+  h.render().submit({'field-0':'synthetic-user','field-1':'synthetic-password'});
+  // Deliberately no onNavigation(destination): WKWebView sends this later.
+  h.message({type:'sc.auth.exit',url:destination});
+  assert.equal(h.render().active,false,company+' '+role);assert.equal(h.render().busy,false);assert.equal(h.render().document,null);
+  h.render().onLocation(destination);h.render().onLoadEnd(destination);
+  assert.equal(h.render().active,false);
+  h.render().open(site+'login?_native_login=1');
+  h.message({type:'sc.auth.exit',url:destination});
+  assert.equal(h.render().active,true,'Explicit sign-out rejects a late old dashboard exit');
+ }
+});
+
+test('restored sessions finish before an iPhone URL event while foreign completion remains rejected',()=>{
+ const h=authHook();h.render().onNavigation(base);
+ h.message({type:'sc.auth.exit',url:'https://foreign.example/dashboard-gym-client'});
+ assert.equal(h.render().active,true);
+ h.message({type:'sc.auth.exit',url:base+'dashboard-gym-client'});
+ assert.equal(h.render().active,false);assert.equal(h.render().checkingSession,false);
+});
 
 test('startup keeps login hidden until a guest form or authenticated destination confirms the session',()=>{
  const h=authHook();assert.equal(h.render().checkingSession,true);assert.equal(h.render().document,null);

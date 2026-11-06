@@ -19,3 +19,8 @@ export function deviceAuthLanguage(preferredLocales=[]){
     return /^pt(?:[-_]|$)/i.test(first)?'pt':'en';
   }catch{return 'en';}
 }
+export function resolveAppLanguage(chosenLanguage,phoneLanguage){
+  if(['pt','en'].includes(chosenLanguage))return chosenLanguage;
+  if(['pt','en'].includes(phoneLanguage))return phoneLanguage;
+  return 'en';
+}
