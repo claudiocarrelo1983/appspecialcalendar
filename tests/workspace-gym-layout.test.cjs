@@ -1,6 +1,6 @@
-const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {JSDOM}=require('jsdom');
-const server='C:/inetpub/wwwroot/workspace';
+const server=fs.existsSync('C:/inetpub/wwwroot/workspace')?'C:/inetpub/wwwroot/workspace':path.join(__dirname,'../deployment/workspace-mobile-layout');
 const script=fs.readFileSync(server+'/frontend/web/js/gym-mobile-layout.js','utf8');
 function page(content){const dom=new JSDOM('<!doctype html><html lang="en"><body><main class="gym-app-layout">'+content+'</main></body></html>',{url:'https://club.example/memberships',runScripts:'outside-only'});dom.window.gymMobileLayoutLabels={search:'Search',filter:'Filter'};dom.window.eval(script);dom.window.document.dispatchEvent(new dom.window.Event('DOMContentLoaded'));return dom;}
 

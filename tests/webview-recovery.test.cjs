@@ -66,6 +66,17 @@ test('successful POST documents never become the recovery GET target',()=>{
   h.api.navigation({url:submit,navigationType:'formsubmit'});h.api.start(submit);h.api.end(submit);h.ack(submit);
   h.api.location(submit);h.api.terminated();assert.equal(h.mounts[0].url,form);
 });
+test('WKWebView HTTP 302 redirects without a load-start event are accepted and commit the final destination',()=>{
+  const h=harness(),login=base+'site/login',dashboard=base+'dashboard-gym-client';
+  h.api.navigation({url:login,navigationType:'formsubmit',method:'POST'});
+  h.api.start(login);
+  assert.ok(h.timers.size > 0,'Load timeout scheduled for form submit');
+  // 302 redirect completes to dashboard without a second onLoadStart
+  assert.equal(h.api.end(dashboard),true,'Redirect destination accepted');
+  h.ack(dashboard);
+  assert.equal(h.state.status,'ready');
+  assert.equal(h.timers.size,0,'All timers cleared once ready');
+});
 test('foreign, stale and subframe events cannot authorize recovery or a healthy document',()=>{
   const h=harness();h.api.start(dashboard);h.api.end(dashboard);
   h.ack('https://other.example/',true);h.ack(dashboard,true,0);

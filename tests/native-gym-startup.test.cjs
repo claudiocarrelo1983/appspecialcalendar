@@ -138,9 +138,21 @@ test('FTX HTTP 403 clears native access without signing out the valid website se
 });
 
 test('an expired session returns to sign-in instead of trapping startup on the error screen', async () => {
-  const p = hook(), request = p.request(); p.reply(request, 401, null); await request.promise;
+  const p = hook(); p.render().onNavigation(start + 'client-settings');
+  const request = p.request(); p.reply(request, 401, null); await request.promise;
   assert.equal(p.render().data, null); assert.equal(p.render().bootstrapState, 'idle');
   assert.ok(p.scripts.at(-1).includes('location.replace("' + start + 'login")'));
+});
+
+test('401 responses on client dashboard never inject location.replace to break infinite login loops', async () => {
+  const p = hook(), first = p.request(); p.reply(first, 401, null); await first.promise;
+  const scriptCount = p.scripts.filter(s => s.includes('location.replace')).length;
+  assert.equal(scriptCount, 0, 'Client dashboard 401 never injects location.replace');
+  assert.equal(p.render().bootstrapState, 'failed');
+  assert.equal(p.render().bootstrapError, 'HTTP_401');
+  const second = p.request(); p.reply(second, 401, null); await second.promise;
+  const scriptCountAfter = p.scripts.filter(s => s.includes('location.replace')).length;
+  assert.equal(scriptCountAfter, 0, 'Repeated 401 on client dashboard never injects location.replace');
 });
 
 test('registration and password recovery remain open without a protected context request or login bounce',async()=>{

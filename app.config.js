@@ -1,7 +1,27 @@
+const fs = require('node:fs');
+const path = require('node:path');
 const selectDomain = require('./config/select-domain.cjs');
 
 module.exports = ({ config }) => {
   const app = selectDomain();
+  const root = path.resolve(__dirname);
+  const iosGoogleServices = app.iosGoogleServicesFile && fs.existsSync(path.join(root, app.iosGoogleServicesFile)) ? app.iosGoogleServicesFile : undefined;
+  const androidGoogleServices = app.androidGoogleServicesFile && fs.existsSync(path.join(root, app.androidGoogleServicesFile)) ? app.androidGoogleServicesFile : undefined;
+
+  const iosConfig = { ...config.ios };
+  if (iosGoogleServices) {
+    iosConfig.googleServicesFile = iosGoogleServices;
+  } else {
+    delete iosConfig.googleServicesFile;
+  }
+
+  const androidConfig = { ...config.android };
+  if (androidGoogleServices) {
+    androidConfig.googleServicesFile = androidGoogleServices;
+  } else {
+    delete androidConfig.googleServicesFile;
+  }
+
   return {
     ...config,
     name: app.title,
@@ -11,9 +31,8 @@ module.exports = ({ config }) => {
     // they share an EAS project and marketing version.
     runtimeVersion: `${config.version}-${app.appId}-health1-calendar1-oauth1-nativeui2-timeralerts3-adminui4-mobile1-branding1-camera1-clipboard1-fitness4-healthauto1-auth1`,
     ios: {
-      ...config.ios,
+      ...iosConfig,
       bundleIdentifier: app.appId,
-      googleServicesFile: app.iosGoogleServicesFile,
       associatedDomains: [`applinks:${app.domain}`],
       infoPlist: {
         ...config.ios.infoPlist,
@@ -23,11 +42,10 @@ module.exports = ({ config }) => {
       },
     },
     android: {
-      ...config.android,
+      ...androidConfig,
       blockedPermissions:(config.android.blockedPermissions||[]).filter(permission=>!['android.permission.READ_CALENDAR','android.permission.WRITE_CALENDAR'].includes(permission)),
       permissions:[...new Set([...(config.android.permissions||[]),'android.permission.SCHEDULE_EXACT_ALARM'])],
       package: app.appId,
-      googleServicesFile: app.androidGoogleServicesFile,
       intentFilters: [{
         autoVerify: true,
         action: 'VIEW',

@@ -1,4 +1,11 @@
 const HEALTH='sc.webview.health';
+const normDoc=url=>{
+  try{
+    const p=new URL(url);
+    return `${p.origin}${p.pathname.replace(/\/index\/?$/,'').replace(/\/$/, '')}${p.search}`;
+  }catch{return url;}
+};
+const matchDoc=(a,b)=>a===b||normDoc(a)===normDoc(b);
 export function createWebViewRecovery({base,inject,remount,change,active=true,setTimer=setTimeout,clearTimer=clearTimeout,now=Date.now}) {
   const origin=new URL(base).origin;
   let current=base,safe=base,foreground=active,loading=false,failed=false,mutation=false,disposed=false;
@@ -54,7 +61,10 @@ export function createWebViewRecovery({base,inject,remount,change,active=true,se
     end(url,generation=revision){
       if(generation!==revision||disposed||failed)return false;
       // onLoadEnd also fires after onError; ignore a dead document's final event.
-      if(url&&url!==current)return false;
+      if(url&&url!==current){
+        if(local(url)){current=url;mutation=false;safe=url;}
+        else return false;
+      }
       loading=false;stop('load');probe();return true;
     },
     error(event,generation=revision){
@@ -67,7 +77,7 @@ export function createWebViewRecovery({base,inject,remount,change,active=true,se
       if(typeof event.data!=='string'||event.data.length>2048)return false;
       let value;try{value=JSON.parse(event.data);}catch{return false;}
       if(value?.type!==HEALTH)return false;
-      if(disposed||value.token!==probeId||!local(event.url||current)||!local(value.documentUrl)||value.documentUrl!==current)return true;
+      if(disposed||value.token!==probeId||!local(event.url||current)||!local(value.documentUrl)||!matchDoc(value.documentUrl,current))return true;
       if(value.content===true)healthy();else fail('EMPTY_DOCUMENT');return true;
     },
     appState(state){

@@ -7,6 +7,8 @@ import * as Notifications from 'expo-notifications';
 import { cancelTimerAlert } from './nativeTimerAlerts';
 import { gymRequestScript, nativeShellStyleScript, authPageReadyScript, NATIVE_AUTH_READY, NATIVE_GYM_MESSAGE, sameGymOrigin, isClientDashboard, clientWebSection, validSnapshot, WEB_ROUTES } from './nativeGymCore';
 
+let globalLastBounce = 0;
+
 export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
   const [data, setData] = useState(null);
   const [screen, setScreen] = useState('web');
@@ -109,10 +111,18 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
     if ([401,403].includes(message.status)) {
       clear();
       const diagnostic='HTTP_'+message.status+([4101,4102,4103,4104,4105].includes(message.result?.code)?'_'+message.result.code:'');
-      if (message.status === 401) {
-        webViewRef.current?.injectJavaScript('location.replace('+JSON.stringify(new URL('/login',startUrl).href)+');true;');
-      } else if (isClientDashboard(documentUrl.current,startUrl)) {
-        setBootstrapError(diagnostic);setBootstrapState('failed');
+      if (isClientDashboard(documentUrl.current, startUrl)) {
+        // On the client dashboard, the user is already authenticated by the server (guests are redirected by Yii).
+        // If the native gym endpoint still returns 401 after internal retries, do NOT bounce to /login,
+        // because /login will immediately redirect back here and cause an infinite loop.
+        setBootstrapError(diagnostic);
+        setBootstrapState('failed');
+      } else if (message.status === 401) {
+        const now = Date.now();
+        if (!globalLastBounce || now - globalLastBounce > 15000) {
+          globalLastBounce = now;
+          webViewRef.current?.injectJavaScript('location.replace('+JSON.stringify(new URL('/login',startUrl).href)+');true;');
+        }
       }
       const failure=new Error(message.status===401?'signedOut':'forbidden');failure.diagnostic=diagnostic;
       item.reject(failure); return true;
@@ -219,6 +229,7 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
   }, [changeScreen,refresh]);
   const showBookings=useCallback(()=>{setWebTarget(null);setWebSection('bookings');changeScreen('web');},[changeScreen]);
   const signIn = useCallback(() => {
+    globalLastBounce = 0;
     beginAuthTransition();
     clear();
     const url=new URL('/login',startUrl);url.searchParams.set('_native_login',String(++authAttempt.current));
