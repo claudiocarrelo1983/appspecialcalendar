@@ -13,14 +13,8 @@ export function authText(value,language){
   const pair=pairs.find(pair=>pair.some(item=>item.toLocaleLowerCase()===text.trim().toLocaleLowerCase()));
   return pair?pair[language==='pt'?1:0]:text;
 }
-export function deviceAuthLanguage(preferredLocales=[]){
-  try{
-    const first=preferredLocales.find(value=>typeof value==='string'&&value.trim())||Intl.DateTimeFormat().resolvedOptions().locale;
-    return /^pt(?:[-_]|$)/i.test(first)?'pt':'en';
-  }catch{return 'en';}
-}
 export function resolveAppLanguage(chosenLanguage,phoneLanguage){
   if(['pt','en'].includes(chosenLanguage))return chosenLanguage;
-  if(['pt','en'].includes(phoneLanguage))return phoneLanguage;
+  if(typeof phoneLanguage==='string'&&/^pt(?:[-_]|$)/i.test(phoneLanguage))return 'pt';
   return 'en';
 }

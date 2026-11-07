@@ -22,7 +22,7 @@ test('an active client shell suppresses stale staff header, footer and More cog'
  const child={type:'WebView',props:{}},page={url:'https://club.example/group-notifications',kind:'web'};
  const pages={document:{page,header:{user:{level:'team'}},footer:[],menuTree:[],accountActions:[]},page,startup:'active',busy:false};
  const result=h.render(h.exports.default,{enabled:false,pages,admin:{screen:'web'},children:child});
- assert.equal(result,child);assert.equal(nodes(result).length,1);
+ assert.ok(nodes(result).includes(child));assert.ok(!nodes(result).some(n=>['native-admin-footer','native-admin-startup','native-admin-loading'].includes(n.props?.testID)||n.type==='Header'));
 });
 test('busy admin loader fills the frame instead of occupying footer layout space',()=>{
  const h=harness('NativeAdminFrame.js',{'../utils/nativeAdminPages':{adminPageLabels:()=>({})}});

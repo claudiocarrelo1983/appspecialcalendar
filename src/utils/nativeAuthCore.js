@@ -112,7 +112,9 @@ const AUTH_SOURCE=String.raw`function AUTH_SOURCE(config,classify){
     const action=form?safe(form.action||location.href):null;
     const brand=form||document.querySelector('[data-native-auth-company]');
     try{const flashes=JSON.parse(brand?.getAttribute('data-native-auth-messages')||'[]');if(Array.isArray(flashes))for(const message of flashes)if(typeof message==='string'&&message&&!messages.includes(message))messages.push(message.slice(0,2000));}catch{}
-    const data={type:'sc.auth.document',url:location.href,revision,kind,language:document.documentElement.lang?.startsWith('pt')?'pt':'en',fields,links,messages,
+    let chosenLanguage;try{chosenLanguage=localStorage.getItem('sc.app.language.choice');}catch{}
+    const language=chosenLanguage==='pt'||chosenLanguage==='en'?chosenLanguage:window.__scAppLanguage==='pt'?'pt':'en';
+    const data={type:'sc.auth.document',url:location.href,revision,kind,language,fields,links,messages,
       submitLabel:text(submit)||submit?.value||'',canSubmit:!!form&&!!submit&&!submit.disabled&&form.method.toLowerCase()==='post'&&!!action&&!unsupported,
       color:brand?.getAttribute('data-native-auth-color')||getComputedStyle(document.documentElement).getPropertyValue('--sc-primary').trim(),logo:safe(brand?.getAttribute('data-native-auth-logo')||''),company:brand?.getAttribute('data-native-auth-company')||''};
     window.__scNativeAuth={revision,form,controls,publish:()=>send(true)};

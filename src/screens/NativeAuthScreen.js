@@ -9,10 +9,10 @@ import {authPageKind} from '../utils/nativeAuthCore';
 import {loginPlaceholder,adoptLoginDraft} from '../utils/nativeLoginDraft';
 import Constants from 'expo-constants';
 import {authLegalLinks} from '../utils/authLegalLinks';
-import {authText,deviceAuthLanguage} from '../utils/nativeAuthTranslations';
+import {authText,resolveAppLanguage} from '../utils/nativeAuthTranslations';
 import NativeDateField from './NativeDateField';
 export default function NativeAuthScreen({auth,base,color}){
-  const language=auth.language||auth.document?.language||deviceAuthLanguage(),pt=language==='pt',insets=useSafeAreaInsets();
+  const language=resolveAppLanguage(auth.language||auth.document?.language),pt=language==='pt',insets=useSafeAreaInsets();
   const raw=auth.document||(auth.kind==='login'?loginPlaceholder(language):null);
   const doc=raw?{...raw,submitLabel:authText(raw.submitLabel,language),links:raw.links.map(link=>({...link,label:authText(link.label,language)})),
     fields:raw.fields.map(field=>({...field,label:authText(field.label,language),placeholder:authText(field.placeholder,language),

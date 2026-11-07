@@ -28,7 +28,7 @@ function Button({ label, onPress, disabled, secondary, color, style, accessibili
 export default function NativeAdminShell({ admin, framed = false, children, brandColor, accountKey, enabled=true }) {
   const insets = useSafeAreaInsets(), { color: defaultColor, siteUrl } = companyAppConfig();
   const color = brandColor || defaultColor;
-  const t = adminTranslations(admin.context?.language), native = admin.screen === 'classes' && !!admin.context;
+  const t = adminTranslations(admin.context?.language), native = enabled && admin.screen === 'classes' && !!admin.context;
   const [query, setQuery] = useState(''), [selected, setSelected] = useState(null);
   const [shareItem,setShareItem]=useState(null);
   useEffect(()=>{if(admin.sharedClass)setShareItem(admin.sharedClass);},[admin.sharedClass]);
@@ -82,18 +82,18 @@ export default function NativeAdminShell({ admin, framed = false, children, bran
       <Button color={color} style={{ flex: 1 }} label={t.manage} onPress={() => admin.loadRoster(Number(item.schedule_id), item.date)}/>
     </View>
   </View>;
-  if(!enabled)return children;
+  // Keep the document mounted when member context disables staff presentation.
   return <View style={s.root}>
-    {!!shareItem&&<NativeClassShare item={shareItem} language={shareItem.language||admin.context?.language} color={color}
+    {enabled&&!!shareItem&&<NativeClassShare item={shareItem} language={shareItem.language||admin.context?.language} color={color}
       search={admin.searchShareClients} send={admin.sendClassInvitation} onClose={()=>{setShareItem(null);admin.closeShareClass?.();}}/>}
-    {!framed && admin.context && admin.onDashboard && <View testID="native-admin-navigation" style={s.toolbar}>
+    {enabled && !framed && admin.context && admin.onDashboard && <View testID="native-admin-navigation" style={s.toolbar}>
       {[['web', t.dashboard, admin.showDashboard], ['classes', t.classes, admin.showClasses]].map(([key, label, onPress]) =>
         <Pressable key={key} accessibilityRole="tab" accessibilityLabel={label} accessibilityState={{ selected: admin.screen === key }}
           onPress={onPress} style={[s.segment, { backgroundColor: admin.screen === key ? brandSoft(color) : '#fff' }]}>
           <Text style={{ color: admin.screen === key ? color : theme.muted, fontWeight: '600' }}>{label}</Text>
         </Pressable>)}
     </View>}
-    <View style={native ? s.hidden : s.web} pointerEvents={native ? 'none' : 'auto'}
+    <View key="embedded-document" style={native ? s.hidden : s.web} pointerEvents={native ? 'none' : 'auto'}
       accessibilityElementsHidden={native} importantForAccessibility={native ? 'no-hide-descendants' : 'auto'}>{children}</View>
     {native && <FlatList testID="native-admin-classes" data={admin.context.classes} keyExtractor={item => String(item.schedule_id)}
       renderItem={classCard} contentContainerStyle={s.content}
@@ -108,7 +108,7 @@ export default function NativeAdminShell({ admin, framed = false, children, bran
       ListEmptyComponent={<Text style={s.empty}>{t.empty}</Text>}
       ListFooterComponent={admin.context.hasMore ? <Button color={color} secondary label={t.more} disabled={admin.busy}
         onPress={() => admin.loadClasses(admin.context.date, true)}/> : null}/>}
-    <Modal visible={admin.rosterOpen} animationType="slide" onRequestClose={admin.closeRoster}>
+    <Modal visible={enabled&&admin.rosterOpen} animationType="slide" onRequestClose={admin.closeRoster}>
       <View style={[s.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         <View style={s.modalHeader}><View style={{ flex: 1 }}><Text heading style={s.title}>{currentClass?.class_name || t.manage}</Text>
           {!!currentClass && <Text style={s.muted}>{currentClass.date_label || currentClass.date} · {currentClass.start_time} – {currentClass.end_time}</Text>}

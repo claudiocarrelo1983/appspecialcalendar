@@ -32,7 +32,8 @@ function nodes(tree) { return !tree || typeof tree !== 'object' ? [] : [tree, ..
 
 test('member-owned web content cannot display the legacy staff navigation or class overlay',()=>{
  const tree=render({context:{language:'pt',classes:[]},screen:'classes',onDashboard:true,rosterOpen:true},{enabled:false});
- assert.equal(tree.type,'WebView');assert.equal(nodes(tree).length,1);
+ assert.ok(nodes(tree).some(n=>n.type==='WebView'));assert.ok(!nodes(tree).some(n=>['native-admin-navigation','native-admin-classes'].includes(n.props?.testID)));
+ assert.equal(nodes(tree).find(n=>n.type==='Modal').props.visible,false);
 });
 
 test('schedule filter matches web day/week navigation, Today, Monday strip and class selection',()=>{

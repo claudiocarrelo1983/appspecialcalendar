@@ -35,6 +35,16 @@ test('login snapshot exports native fields and links without passwords, CSRF or 
  const p=await page(),data=p.last();assert.equal(data.fields.length,2);assert.equal(data.fields[1].value,'');assert.equal(data.company,'FTX');assert.equal(data.canSubmit,true);assert.equal(data.links.length,2);assert.ok(data.fields.every(field=>!field.error));
  const serialized=JSON.stringify(data);for(const secret of ['csrf-secret','company-scope','never-export-this'])assert.ok(!serialized.includes(secret));assert.equal(p.dom.window.document.body.style.visibility,'');p.dom.window.close();
 });
+
+test('native login keeps a saved choice over the locally detected language without reloading',async()=>{
+ const p=await page(markup.replace('lang="en"','lang="pt"'));
+ assert.equal(p.last().language,'en','No saved choice defaults to English even on a Portuguese page');
+ p.dom.window.localStorage.setItem('sc.app.language.choice','pt');p.dom.window.eval(core.nativeAuthScript(base));assert.equal(p.last().language,'pt');
+ p.dom.window.localStorage.setItem('sc.app.language.choice','en');p.dom.window.eval(core.nativeAuthScript(base));assert.equal(p.last().language,'en');
+ p.dom.window.__scAppLanguage='pt';p.dom.window.eval(core.nativeAuthScript(base));assert.equal(p.last().language,'en','Saved English overrides Portuguese phone');
+ p.dom.window.localStorage.removeItem('sc.app.language.choice');p.dom.window.eval(core.nativeAuthScript(base));assert.equal(p.last().language,'pt','Phone language applies only without a saved choice');
+ p.dom.window.close();
+});
 test('native submission preserves original session form fields and cannot rewrite hidden or foreign controls',async()=>{
  const p=await page(),document=p.dom.window.document,data=p.last();let posted;
  document.querySelector('form').addEventListener('submit',event=>{event.preventDefault();posted=new p.dom.window.FormData(event.target);});
@@ -97,6 +107,24 @@ test('restored sessions finish before an iPhone URL event while foreign completi
  assert.equal(h.render().active,true);
  h.message({type:'sc.auth.exit',url:base+'dashboard-gym-client'});
  assert.equal(h.render().active,false);assert.equal(h.render().checkingSession,false);
+});
+
+test('late iPhone load-start cannot blacklist a fresh login form and leave its loading screen stuck',()=>{
+ for(const company of ['c20260531125358085','c20261027151705426']){
+  const site='https://'+company+'.specialcalendar.com/',h=authHook(site),url=site+'login';
+  h.render().onNavigation(url);h.message(h.doc('fresh-dom'));
+  assert.equal(h.render().busy,false);
+  h.render().onNavigation(url); // Delayed WKWebView onLoadStart for the same DOM.
+  assert.equal(h.render().busy,true);
+  h.render().onLoadEnd(url);h.message(h.doc('fresh-dom'));
+  assert.equal(h.render().busy,false);assert.equal(h.render().document.revision,'fresh-dom');
+  h.render().submit({'field-0':'synthetic-user','field-1':'synthetic-password'});
+  h.render().onNavigation(url);h.message(h.doc('fresh-dom'));
+  assert.equal(h.render().busy,true,'An old form replay must not unlock an in-flight login POST');
+  h.message({...h.doc('server-result'),fields:[{id:'field-0',error:'Synthetic validation error'}]});
+  assert.equal(h.render().busy,false);assert.equal(h.render().document.revision,'server-result');
+  h.message(h.doc('fresh-dom'));assert.equal(h.render().document.revision,'server-result','Old form remains retired after the new document is accepted');
+ }
 });
 
 test('startup keeps login hidden until a guest form or authenticated destination confirms the session',()=>{

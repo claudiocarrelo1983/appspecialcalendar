@@ -62,7 +62,7 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
     const timeout = setTimeout(() => {
       pending.current.delete(id); reject(new Error('offline'));
     }, 15000);
-    pending.current.set(id, {resolve, reject, timeout, action});
+    pending.current.set(id, {resolve, reject, timeout, action, refreshRevision: refreshSequence.current});
     webViewRef.current.injectJavaScript(gymRequestScript(id, action, params, startUrl));
   }), [startUrl, webViewRef]);
   const accept = useCallback((next) => {
@@ -108,6 +108,12 @@ export default function useNativeGym(webViewRef, startUrl, setWebViewUrl) {
     const item = pending.current.get(message.id);
     if (!item) return true;
     clearTimeout(item.timeout); pending.current.delete(message.id);
+    // A second startup/foreground refresh may already have confirmed login.
+    // Ignore every superseded context response before handling 401/403, since
+    // clearing here would otherwise erase the newer authenticated client.
+    if (item.action === 'context' && item.refreshRevision !== refreshSequence.current) {
+      item.reject(new Error('navigating')); return true;
+    }
     if ([401,403].includes(message.status)) {
       clear();
       const diagnostic='HTTP_'+message.status+([4101,4102,4103,4104,4105].includes(message.result?.code)?'_'+message.result.code:'');

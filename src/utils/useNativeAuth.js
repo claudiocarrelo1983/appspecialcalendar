@@ -1,6 +1,6 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {authPageKind,nativeAuthScript,authSubmitScript,authLanguageScript,AUTH_MESSAGE,AUTH_LANGUAGE_MESSAGE} from './nativeAuthCore';
-import {deviceAuthLanguage} from './nativeAuthTranslations';
+import {resolveAppLanguage} from './nativeAuthTranslations';
 const normUrl=url=>{
   try{
     const p=new URL(url);
@@ -10,7 +10,7 @@ const normUrl=url=>{
 export default function useNativeAuth(ref,base,navigate){
   const [active,setActive]=useState(true),[document,setDocument]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const [checkingSession,setCheckingSession]=useState(true);
-  const [language,setLanguageState]=useState(deviceAuthLanguage());
+  const [language,setLanguageState]=useState(resolveAppLanguage());
   const languageRequest=useRef(null);
   const current=useRef(base),snapshot=useRef(null),timer=useRef(null),submitting=useRef(false);
   const awaitingDestination=useRef(true);
@@ -20,8 +20,15 @@ export default function useNativeAuth(ref,base,navigate){
   const deadline=()=>{stop();timer.current=setTimeout(()=>{setCheckingSession(false);setBusy(false);submitting.current=false;awaitingDestination.current=false;languageRequest.current=null;setError('connection');},20000);};
   useEffect(()=>{deadline();return stop;},[]);
   const onNavigation=useCallback(url=>{
-    const kind=authPageKind(url,base);current.current=url;languageRequest.current=null;
-    if(kind){retire();snapshot.current=null;setDocument(null);submitting.current=false;setActive(true);setError('');setBusy(true);deadline();}
+    const kind=authPageKind(url,base),sameUrl=url===current.current;current.current=url;languageRequest.current=null;
+    if(kind){
+      // On iOS a load-start event for this URL can arrive after its fresh DOM
+      // snapshot. Do not blacklist that document, or its load-end replay will
+      // be rejected forever. A same-URL login POST also keeps its submit lock
+      // until a new document or validation response confirms the outcome.
+      if(!sameUrl){retire();snapshot.current=null;submitting.current=false;}
+      setDocument(null);setActive(true);setError('');setBusy(true);deadline();
+    }
   },[base]);
   const onLocation=useCallback(url=>{if(url&&url!==current.current)onNavigation(url);},[onNavigation]);
   const onLoadEnd=useCallback(url=>{
@@ -59,6 +66,7 @@ export default function useNativeAuth(ref,base,navigate){
     if(languageRequest.current&&snapshot.current?.revision===next.revision)return true;
     const validation=next.fields.some(field=>field.error)||next.messages.some(message=>!(snapshot.current?.messages||[]).includes(message));
     if(submitting.current&&snapshot.current?.revision===next.revision&&!validation)return true;
+    if(snapshot.current?.revision!==next.revision)retire();
     stop();submitting.current=false;awaitingDestination.current=false;current.current=next.url;snapshot.current=next;setDocument(next);setCheckingSession(false);if(['pt','en'].includes(next.language))setLanguageState(next.language);setActive(true);setBusy(false);setError('');return true;
   },[base]);
   const open=useCallback(url=>{

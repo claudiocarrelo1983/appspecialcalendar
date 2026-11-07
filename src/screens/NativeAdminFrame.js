@@ -157,7 +157,7 @@ export default function NativeAdminFrame({pages,admin,children,onBack,brandColor
   useEffect(()=>setCalendarOpen(false),[timerAccountKey]);
   const logout=pages.document?.accountActions?.find(action=>action.kind==='logout');
   useEffect(()=>{setMenu(null);setScan(false);},[pages.document?.page?.url]);
-  const active=!!pages.document&&!!pages.page;
+  const active=enabled&&!!pages.document&&!!pages.page;
   const team=['team','equipa','equipe'].includes(String(pages.document?.header?.user?.level||'').trim().toLowerCase());
   const compactTeam=team&&(pages.document?.footer.length||0)<3;
   const hasQuickAction=team?!!pages.document?.scanner:!!(pages.document?.create?.length||pages.document?.scanner);
@@ -165,7 +165,7 @@ export default function NativeAdminFrame({pages,admin,children,onBack,brandColor
     style={[s.fab,{backgroundColor:color},compactTeam&&{position:'absolute',left:'50%',top:28,marginHorizontal:0,transform:[{translateX:-24},{translateY:-24}],zIndex:2}]}>
     <View accessible={false} pointerEvents="none" style={s.plusGlyph}><View style={s.plusHorizontal}/><View style={s.plusVertical}/></View>
   </Pressable>;
-  const preparing=!active&&['loading','failed'].includes(pages.startup);
+  const preparing=enabled&&!active&&['loading','failed'].includes(pages.startup);
   const native=active&&!pages.web&&(timer||pages.page.kind!=='web')&&(timer||admin.screen!=='classes');
   const navigate=url=>{
     setMenu(null);
@@ -179,9 +179,9 @@ export default function NativeAdminFrame({pages,admin,children,onBack,brandColor
     admin.showDashboard();pages.navigate(url);
   };
   const pressAction=action=>{setMenu(null);Alert.alert(action.label,t.confirm,[{text:t.cancel,style:'cancel'},{text:action.label,onPress:()=>pages.invoke(action.id)}]);};
-  // An authenticated member shell owns its own header/footer. Never nest staff chrome.
-  if(!enabled)return children;
-  return <View style={[s.flex,{backgroundColor:'#f5f7fa'}]}>
+  // Keep the document's ancestors mounted when member context disables staff
+  // chrome. Returning children directly here remounts the authenticated WebView.
+  return <View style={[s.flex,enabled&&{backgroundColor:'#f5f7fa'}]}>
     {preparing&&<View testID="native-admin-startup" style={s.startup}>
       <Image source={companyLogoImage()} resizeMode="contain" style={s.startupLogo}/><Text heading style={s.heading}>{t.adminLabel}</Text>
       <Text style={s.muted}>{pages.startup==='loading'?t.loadingApp:t.setupError}</Text>
@@ -195,7 +195,7 @@ export default function NativeAdminFrame({pages,admin,children,onBack,brandColor
       backVisible={timer||(!/^\/dashboard-gym(?:\/index)?\/?$/.test(new URL(pages.page.url).pathname)&&!['dashboard','clients','catalog','memberships'].includes(pages.page.kind)&&!/^\/(?:company|preferences)(?:\/index)?\/?$/.test(new URL(pages.page.url).pathname))}
       onHome={()=>{const home=pages.document.footer.find(item=>new URL(item.url).pathname.startsWith('/dashboard-gym'));if(home)navigate(home.url);}}/>}
     {active&&!timer&&<NativeSubcategoryTabs tree={pages.document.menuTree} url={pages.page.url} language={pages.document.language} color={color} onNavigate={navigate}/>}
-    <View style={native||preparing?s.hidden:s.flex} pointerEvents={native||preparing?'none':'auto'} accessibilityElementsHidden={native||preparing}
+    <View key="embedded-document" style={native||preparing?s.hidden:s.flex} pointerEvents={native||preparing?'none':'auto'} accessibilityElementsHidden={native||preparing}
       aria-hidden={native||preparing}
       importantForAccessibility={native||preparing?'no-hide-descendants':'auto'}>{children}</View>
     {native&&(timer?<ScrollView contentContainerStyle={s.timerContent} keyboardShouldPersistTaps="handled">
