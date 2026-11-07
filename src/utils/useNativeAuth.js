@@ -1,6 +1,12 @@
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {authPageKind,nativeAuthScript,authSubmitScript,authLanguageScript,AUTH_MESSAGE,AUTH_LANGUAGE_MESSAGE} from './nativeAuthCore';
 import {deviceAuthLanguage} from './nativeAuthTranslations';
+const normUrl=url=>{
+  try{
+    const p=new URL(url);
+    return `${p.origin}${p.pathname.replace(/\/index\/?$/,'').replace(/\/$/, '')}${p.search}`;
+  }catch{return url;}
+};
 export default function useNativeAuth(ref,base,navigate){
   const [active,setActive]=useState(true),[document,setDocument]=useState(null),[busy,setBusy]=useState(false),[error,setError]=useState('');
   const [checkingSession,setCheckingSession]=useState(true);
@@ -30,14 +36,14 @@ export default function useNativeAuth(ref,base,navigate){
     let same=false;try{
       const sender=new URL(event.url),page=new URL(value.url),site=new URL(base);
       const originOnly=sender.pathname==='/'&&!sender.search&&!sender.hash;
-      same=sender.origin===site.origin&&page.origin===site.origin&&!sender.username&&!sender.password&&!page.username&&!page.password&&(originOnly||value.url===event.url);
+      same=sender.origin===site.origin&&page.origin===site.origin&&!sender.username&&!sender.password&&!page.username&&!page.password&&(originOnly||value.url===event.url||normUrl(value.url)===normUrl(event.url));
     }catch{}
     if(!same)return true;
     // WKWebView can publish the completed redirect before its native URL event.
     // Permit this only while checking a session or submitting login, never after
     // an explicit logout or from a foreign document.
     const completedRedirect=value.type==='sc.auth.exit'&&awaitingDestination.current&&authPageKind(current.current,base)&&!authPageKind(value.url,base);
-    if(current.current!==value.url&&!completedRedirect)return true;
+    if(current.current!==value.url&&!completedRedirect&&normUrl(current.current)!==normUrl(value.url))return true;
     if(value.type===AUTH_LANGUAGE_MESSAGE){
       if(!languageRequest.current||value.revision!==snapshot.current?.revision||value.language!==languageRequest.current)return true;
       if(value.success===true){setLanguageState(value.language);}else{stop();languageRequest.current=null;setBusy(false);setError('connection');}
